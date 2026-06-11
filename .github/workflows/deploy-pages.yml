@@ -29,6 +29,8 @@ jobs:
         run: npm ci
       - name: Build
         run: GITHUB_PAGES=true npm run build
+        env:
+          VITE_SHEETS_CSV_URL: ${{ secrets.VITE_SHEETS_CSV_URL }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
