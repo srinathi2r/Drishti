@@ -90,6 +90,86 @@ const SUBMISSION_TYPES = {
   Voice: { ne: "फोन कल", en: "Voice call" },
 };
 
+const DISTRICT_TABS = [
+  { key: "all", districtEn: "", ne: "सबै", en: "All" },
+  { key: "dailekh", districtEn: "Dailekh", ne: "दैलेख", en: "Dailekh" },
+  { key: "jajarkot", districtEn: "Jajarkot", ne: "जाजरकोट", en: "Jajarkot" },
+  { key: "salyan", districtEn: "Salyan", ne: "सल्यान", en: "Salyan" },
+];
+
+const DETAIL_SECTIONS = [
+  {
+    ne: "१. प्रभावित जनसंख्या",
+    en: "Affected Population",
+    fields: [
+      { key: "deaths", ne: "मृत्यु", en: "Deaths" },
+      { key: "missing", ne: "बेपत्ता", en: "Missing" },
+      { key: "injured", ne: "घाइते", en: "Injured" },
+      { key: "displaced_households", ne: "विस्थापित घरधुरी", en: "Displaced households" },
+      { key: "total_affected_population", ne: "कुल प्रभावित जनसंख्या", en: "Total affected population" },
+    ],
+  },
+  {
+    ne: "२. खोज तथा उद्धार",
+    en: "Search and Rescue",
+    fields: [
+      { key: "rescue_ongoing_wards", ne: "उद्धार कार्य भइरहेको वडा संख्या", en: "Wards with rescue ongoing" },
+      { key: "rescue_completed_wards", ne: "उद्धार कार्य सकिएको वडा संख्या", en: "Wards with rescue completed" },
+      { key: "total_rescued", ne: "उद्धार संख्या", en: "Total rescued" },
+    ],
+  },
+  {
+    ne: "३. अस्थायी आश्रय",
+    en: "Temporary Shelter",
+    fields: [
+      { key: "shelter_households_schools", ne: "विद्यालयमा आश्रित घरधुरी", en: "Households in schools" },
+      { key: "shelter_households_public_buildings", ne: "सार्वजनिक भवनमा", en: "Households in public buildings" },
+      { key: "shelter_households_relatives", ne: "आफन्त/छिमेकीमा", en: "Households with relatives" },
+      { key: "shelter_households_open_areas", ne: "खुला क्षेत्रमा", en: "Households in open areas" },
+      { key: "immediate_shelter_need_households", ne: "तत्काल अस्थायी आवासको आवश्यकता", en: "Immediate shelter need" },
+    ],
+  },
+  {
+    ne: "५. संचार तथा विद्युत",
+    en: "Communications and Electricity",
+    fields: [
+      { key: "communications_disrupted", ne: "संचार सेवा अवरुद्ध", en: "Communications disrupted", type: "boolean" },
+      { key: "electricity_disrupted", ne: "विद्युत सेवा अवरुद्ध", en: "Electricity disrupted", type: "boolean" },
+    ],
+  },
+  {
+    ne: "९. खानेपानीको आपूर्ति",
+    en: "Water Supply",
+    fields: [
+      { key: "water_supply_disrupted", ne: "खानेपानी आपूर्ति अवरुद्ध", en: "Water supply disrupted", type: "boolean" },
+      { key: "water_disruption_households", ne: "अवरुद्ध भएको घरधुरी", en: "Households affected by water disruption" },
+    ],
+  },
+  {
+    ne: "११. भौतिक संरचना",
+    en: "Physical Structures",
+    fields: [
+      { key: "private_houses_fully_damaged", ne: "निजी घर पूर्ण क्षति", en: "Private houses fully damaged" },
+      { key: "private_houses_partially_damaged", ne: "निजी घर आंशिक क्षति", en: "Private houses partially damaged" },
+      { key: "government_buildings_fully_damaged", ne: "सरकारी कार्यालय पूर्ण क्षति", en: "Government buildings fully damaged" },
+      { key: "government_buildings_partially_damaged", ne: "सरकारी कार्यालय आंशिक क्षति", en: "Government buildings partially damaged" },
+      { key: "public_buildings_fully_damaged", ne: "सार्वजनिक भवन पूर्ण क्षति", en: "Public buildings fully damaged" },
+      { key: "public_buildings_partially_damaged", ne: "सार्वजनिक भवन आंशिक क्षति", en: "Public buildings partially damaged" },
+    ],
+  },
+  {
+    ne: "१४. तत्काल आवश्यकता",
+    en: "Immediate Needs",
+    fields: [
+      { key: "tents_needed", ne: "टेन्ट संख्या", en: "Tents needed" },
+      { key: "tarpaulins_needed", ne: "त्रिपाल", en: "Tarpaulins needed" },
+      { key: "food_packages_needed", ne: "दाल, चामल, घिउ, तेल", en: "Food packages needed" },
+      { key: "blankets_needed", ne: "कम्बल थान", en: "Blankets needed" },
+      { key: "drinking_water_people", ne: "पिउने पानी", en: "Drinking water needed" },
+    ],
+  },
+];
+
 function parseCsv(text) {
   const rows = [];
   let row = [];
@@ -177,6 +257,15 @@ function toNumber(value) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+function formatDetailValue(row, field) {
+  const raw = row?.[field.key];
+  if (raw === undefined || raw === null || String(raw).trim() === "") return "—";
+  if (field.type === "boolean") {
+    return truthy(raw) ? "हो / Yes" : "होइन / No";
+  }
+  return formatNumber(toNumber(raw));
 }
 
 function formatDate(value) {
@@ -280,6 +369,63 @@ function SectionTitle({ ne, en, right }) {
   );
 }
 
+function PalikaDetailPanel({ submission, onClose }) {
+  const type = SUBMISSION_TYPES[submission.submission_type] || {
+    ne: submission.submission_type_ne || "—",
+    en: submission.submission_type || "—",
+  };
+
+  return (
+    <div className="panel detail-panel">
+      <div className="detail-header">
+        <div>
+          <p className="detail-eyebrow">पालिका विवरण / Palika detail</p>
+          <h2>
+            <span lang="ne">{submission.palika_name_ne}</span>
+            <span>{submission.palika_name_en}</span>
+          </h2>
+          <div className="detail-meta">
+            <span>
+              <Bi ne="जिल्ला" en="District" />
+              <strong>{submission.district_ne} / {submission.district_en}</strong>
+            </span>
+            <span>
+              <Bi ne="समय" en="Time" />
+              <strong>{formatDate(submission.submitted_at)}</strong>
+            </span>
+            <span>
+              <Bi ne="तरिका" en="Type" />
+              <strong>{type.ne} / {type.en}</strong>
+            </span>
+          </div>
+        </div>
+        <button className="icon-button" type="button" onClick={onClose} aria-label="बन्द / Close">
+          <XCircle size={22} />
+          <Bi ne="बन्द" en="Close" />
+        </button>
+      </div>
+
+      <div className="detail-sections">
+        {DETAIL_SECTIONS.map((section) => (
+          <section className="detail-section" key={section.en}>
+            <h3>
+              <Bi ne={section.ne} en={section.en} />
+            </h3>
+            <div className="detail-grid">
+              {section.fields.map((field) => (
+                <div className="detail-item" key={field.key}>
+                  <Bi ne={field.ne} en={field.en} />
+                  <strong>{formatDetailValue(submission, field)}</strong>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ExportModal({ onCancel, onConfirm }) {
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -379,6 +525,8 @@ function App() {
   const [error, setError] = useState("");
   const [lastRefresh, setLastRefresh] = useState(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [selectedDistrict, setSelectedDistrict] = useState("all");
+  const [selectedPalikaId, setSelectedPalikaId] = useState("");
 
   const loadData = useCallback(async () => {
     setError("");
@@ -441,7 +589,52 @@ function App() {
 
   const latestByPalika = useMemo(() => latestSubmissions(scopedSubmissions), [scopedSubmissions]);
   const submittedRows = useMemo(() => Array.from(latestByPalika.values()), [latestByPalika]);
-  const summary = useMemo(() => buildSummary(submittedRows), [submittedRows]);
+  const activeDistrict = useMemo(
+    () => DISTRICT_TABS.find((tab) => tab.key === selectedDistrict) || DISTRICT_TABS[0],
+    [selectedDistrict],
+  );
+  const filteredExpected = useMemo(
+    () =>
+      activeDistrict.districtEn
+        ? scopedExpected.filter((row) => row.district_en === activeDistrict.districtEn)
+        : scopedExpected,
+    [activeDistrict.districtEn, scopedExpected],
+  );
+  const filteredSubmittedRows = useMemo(
+    () =>
+      activeDistrict.districtEn
+        ? submittedRows.filter((row) => row.district_en === activeDistrict.districtEn)
+        : submittedRows,
+    [activeDistrict.districtEn, submittedRows],
+  );
+  const summary = useMemo(() => buildSummary(filteredSubmittedRows), [filteredSubmittedRows]);
+  const exportTrackerRows = useMemo(
+    () =>
+      scopedExpected.map((palika) => ({
+        ...palika,
+        submission: latestByPalika.get(palika.palika_id),
+      })),
+    [scopedExpected, latestByPalika],
+  );
+  const exportSubmittedRows = useMemo(
+    () => exportTrackerRows.map((row) => row.submission).filter(Boolean),
+    [exportTrackerRows],
+  );
+  const allSummary = useMemo(() => buildSummary(exportSubmittedRows), [exportSubmittedRows]);
+  const districtBreakdowns = useMemo(
+    () =>
+      DISTRICT_TABS.filter((tab) => tab.districtEn).map((tab) => {
+        const expectedRows = exportTrackerRows.filter((row) => row.district_en === tab.districtEn);
+        const districtSubmittedRows = expectedRows.map((row) => row.submission).filter(Boolean);
+        return {
+          ...tab,
+          expectedCount: expectedRows.length,
+          submittedCount: districtSubmittedRows.length,
+          summary: buildSummary(districtSubmittedRows),
+        };
+      }),
+    [exportTrackerRows],
+  );
 
   const lastUpdated = useMemo(() => {
     const dates = submittedRows
@@ -494,45 +687,73 @@ function App() {
 
   const trackerRows = useMemo(
     () =>
-      scopedExpected.map((palika) => ({
+      filteredExpected.map((palika) => ({
         ...palika,
         submission: latestByPalika.get(palika.palika_id),
       })),
-    [latestByPalika, scopedExpected],
+    [filteredExpected, latestByPalika],
   );
+  const selectedSubmission = selectedPalikaId ? latestByPalika.get(selectedPalikaId) : null;
+
+  const selectDistrict = (districtKey) => {
+    setSelectedDistrict(districtKey);
+    setSelectedPalikaId("");
+  };
 
   const exportSummary = () => {
     setExportModalOpen(false);
+    const exportTimestamp = formatDate(new Date().toISOString());
     const summaryRows = [
+      ["दृष्टि निर्यात / DRISHTI Export", ""],
       ["घटना / Event", `${activeEvent.event_name_ne} / ${activeEvent.event_name_en}`],
       ["जिल्ला / Districts", `${activeEvent.affected_districts_ne} / ${activeEvent.affected_districts_en}`],
-      ["रिपोर्टिङ / Reporting", `${submittedRows.length} of ${scopedExpected.length}`],
-      ["अन्तिम अद्यावधिक / Last updated", lastUpdated],
+      ["कुल अपेक्षित पालिका / Total expected palikas", scopedExpected.length],
+      ["रिपोर्ट गरेका पालिका / Reporting palikas", exportSubmittedRows.length],
+      ["निर्यात समय / Export timestamp", exportTimestamp],
+      ["समन्वयकर्ताद्वारा पुष्टि / Confirmed by coordinator", "हो / Yes"],
       [],
+      ["खण्ड १ -- सबै जिल्ला संयुक्त / Section 1 -- All Districts Combined"],
       ["सूचक / Indicator", "जम्मा / Total"],
-      ...SUMMARY_CARDS.map((card) => [`${card.ne} / ${card.en}`, summary[card.key]]),
+      ...SUMMARY_CARDS.map((card) => [`${card.ne} / ${card.en}`, allSummary[card.key]]),
       [],
-      ["तत्काल आवश्यकता / Immediate Need", "जम्मा / Total"],
-      ...NEED_CARDS.map((card) => [`${card.ne} / ${card.en}`, summary[card.key]]),
+      ["खण्ड २ -- तत्काल आवश्यकता संयुक्त / Section 2 -- Immediate Needs Combined"],
+      ["सूचक / Indicator", "जम्मा / Total"],
+      ...NEED_CARDS.map((card) => [`${card.ne} / ${card.en}`, allSummary[card.key]]),
+      [],
+      ["खण्ड ३ -- जिल्ला विवरण / Section 3 -- District Breakdown"],
+      ...districtBreakdowns.flatMap((district) => [
+        [],
+        [`जिल्ला / District`, `${district.ne} / ${district.en}`],
+        ["रिपोर्टिङ / Reporting", `${district.submittedCount} / ${district.expectedCount}`],
+        ["सूचक / Indicator", "जम्मा / Total"],
+        ...SUMMARY_CARDS.map((card) => [`${card.ne} / ${card.en}`, district.summary[card.key]]),
+      ]),
+      [],
+      ["खण्ड ४ -- पेश स्थिति / Section 4 -- Submission Status"],
+      [
+        "स्थिति / Status",
+        "पालिका / Palika",
+        "जिल्ला / District",
+        "पेश समय / Submission time",
+        "पेश प्रकार / Submission type",
+      ],
+      ...exportTrackerRows.map((row) => {
+        const submitted = Boolean(row.submission);
+        const type = SUBMISSION_TYPES[row.submission?.submission_type] || {
+          ne: row.submission?.submission_type_ne || "—",
+          en: row.submission?.submission_type || "—",
+        };
+        return [
+          submitted ? "प्राप्त / Submitted" : "बाँकी / Outstanding",
+          `${row.palika_name_ne} / ${row.palika_name_en}`,
+          `${row.district_ne} / ${row.district_en}`,
+          submitted ? formatDate(row.submission.submitted_at) : "—",
+          submitted ? `${type.ne} / ${type.en}` : "—",
+        ];
+      }),
     ];
     const csv = `\ufeff${summaryRows.map((row) => row.map(csvEscape).join(",")).join("\n")}`;
-    downloadFile(`drishti-${activeEvent.event_id || "event"}-summary.csv`, csv, "text/csv;charset=utf-8");
-
-    const printWindow = window.open("", "_blank", "noopener,noreferrer");
-    if (printWindow) {
-      printWindow.document.write(
-        printableSummaryHtml({
-          event: activeEvent,
-          summary,
-          rows: submittedRows,
-          expectedCount: scopedExpected.length,
-          lastUpdated,
-        }),
-      );
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-    }
+    downloadFile(`drishti-${activeEvent.event_id || "event"}-complete-summary.csv`, csv, "text/csv;charset=utf-8");
   };
 
   return (
@@ -593,6 +814,20 @@ function App() {
         </div>
       ) : null}
 
+      <nav className="district-tabs" aria-label="जिल्ला फिल्टर / District filter">
+        {DISTRICT_TABS.map((tab) => (
+          <button
+            className={`district-tab ${selectedDistrict === tab.key ? "active" : ""}`}
+            type="button"
+            key={tab.key}
+            onClick={() => selectDistrict(tab.key)}
+            aria-pressed={selectedDistrict === tab.key}
+          >
+            <Bi ne={tab.ne} en={tab.en} />
+          </button>
+        ))}
+      </nav>
+
       <section className="summary-grid" aria-label="Summary">
         {SUMMARY_CARDS.map((card) => (
           <MetricCard key={card.key} card={card} value={summary[card.key]} />
@@ -618,13 +853,13 @@ function App() {
             en="Submission Tracker"
             right={
               <span className="count-pill">
-                {submittedRows.length} / {scopedExpected.length}
+                {filteredSubmittedRows.length} / {filteredExpected.length}
               </span>
             }
           />
           <p className="tracker-status">
-            <span lang="ne">{submittedRows.length} मध्ये {scopedExpected.length} अपेक्षित पालिकाले रिपोर्ट गरेका छन्</span>
-            <span>{submittedRows.length} of {scopedExpected.length} expected palikas reported</span>
+            <span lang="ne">{filteredSubmittedRows.length} मध्ये {filteredExpected.length} अपेक्षित पालिकाले रिपोर्ट गरेका छन्</span>
+            <span>{filteredSubmittedRows.length} of {filteredExpected.length} expected palikas reported</span>
           </p>
           <div className="table-wrap">
             <table>
@@ -645,7 +880,25 @@ function App() {
                     en: row.submission?.submission_type || "—",
                   };
                   return (
-                    <tr key={row.palika_id} className={submitted ? "" : "outstanding"}>
+                    <tr
+                      key={row.palika_id}
+                      className={`${submitted ? "clickable-row" : "outstanding"} ${
+                        selectedPalikaId === row.palika_id ? "selected-row" : ""
+                      }`}
+                      role={submitted ? "button" : undefined}
+                      tabIndex={submitted ? 0 : undefined}
+                      onClick={submitted ? () => setSelectedPalikaId(row.palika_id) : undefined}
+                      onKeyDown={
+                        submitted
+                          ? (event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                setSelectedPalikaId(row.palika_id);
+                              }
+                            }
+                          : undefined
+                      }
+                    >
                       <td>
                         <span className={`status ${submitted ? "submitted" : "pending"}`}>
                           {submitted ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
@@ -669,6 +922,9 @@ function App() {
           </div>
         </div>
 
+        {selectedSubmission ? (
+          <PalikaDetailPanel submission={selectedSubmission} onClose={() => setSelectedPalikaId("")} />
+        ) : (
         <div className="panel">
           <SectionTitle ne="महत्वपूर्ण संकेत" en="Critical Need Flags" />
           {criticalFlags.length ? (
@@ -706,6 +962,7 @@ function App() {
             </div>
           ) : null}
         </div>
+        )}
       </section>
 
       {exportModalOpen ? (
