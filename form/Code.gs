@@ -6,7 +6,7 @@
  * 2. Paste this file into Code.gs.
  * 3. Set optional script property PALIKA_MASTER_CSV_URL to a published CSV URL.
  * 4. Run setupDrishti().
- * 5. Install an on form submit trigger for normalizeSubmission.
+ * 5. Run installTrigger() once manually after setupDrishti().
  */
 
 const DRISHTI = {
@@ -276,6 +276,7 @@ function setupDrishti() {
   importPalikaMasterIfConfigured_(spreadsheet);
 
   configureForm_(form, spreadsheet);
+  cleanupFormResponsesSheet_(spreadsheet);
 
   PropertiesService.getScriptProperties().setProperties({
     [SCRIPT_PROPERTIES.sheetId]: spreadsheet.getId(),
@@ -305,18 +306,52 @@ function refreshActiveEventFormChoices() {
   palikaItem.setChoiceValues(palikas.map((palika) => palika.palika_label));
 }
 
-function normalizeSubmission(e) {
+// Run installTrigger() once manually after setupDrishti() so every new Google Form
+// response is copied from Form Responses 1 into the normalized Submissions tab.
+function installTrigger() {
   const spreadsheet = getSpreadsheet_();
+  const form = FormApp.openById(getStoredProperty_(SCRIPT_PROPERTIES.formId, SCRIPT_PROPERTIES.legacyFormId));
+
+  ScriptApp.getProjectTriggers().forEach((trigger) => {
+    if (trigger.getHandlerFunction() === 'onFormSubmit') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger('onFormSubmit').forSpreadsheet(spreadsheet).onFormSubmit().create();
+  Logger.log(`Installed onFormSubmit trigger for linked form: ${form.getEditUrl()}`);
+  Logger.log(`Response spreadsheet / प्रतिक्रियाको स्प्रेडसिट: ${spreadsheet.getUrl()}`);
+}
+
+function onFormSubmit(e) {
+  const spreadsheet = getSpreadsheet_();
+  const response = formResponseRowMap_(spreadsheet, e);
+  const row = buildSubmissionRow_(spreadsheet, response);
+  appendObject_(spreadsheet.getSheetByName(DRISHTI.sheets.submissions), SUBMISSION_HEADERS, row);
+  Logger.log(`Synced form response to Submissions: ${row.event_id} / ${row.palika_id}`);
+}
+
+function normalizeSubmission(e) {
+  onFormSubmit(e);
+}
+
+function buildSubmissionRow_(spreadsheet, response) {
+  logResponseMapKeys_(response);
   const activeEvent = getActiveEvent_(spreadsheet);
-  const response = responseMap_(e.response);
-  const palika = findPalikaByLabel_(spreadsheet, response['पालिकाको नाम / Palika name']);
-  const submissionType = response['पेश गर्ने तरिका / Submission type'] || '';
-  const duplicate = hasDuplicate_(spreadsheet, activeEvent.event_id, palika.palika_id);
+  const eventEntry = responseEntryForTitle_(response, 'घटनाको नाम / Event name');
+  Logger.log(`Event entry: found=${eventEntry.found}, key="${eventEntry.key}", value="${eventEntry.value}"`);
+  const submittedEvent = findEventByLabel_(spreadsheet, eventEntry.value);
+  const event = submittedEvent || activeEvent;
+  const palikaEntry = responseEntryForTitle_(response, 'पालिकाको नाम / Palika name');
+  Logger.log(`Palika entry: found=${palikaEntry.found}, key="${palikaEntry.key}", value="${palikaEntry.value}"`);
+  const palika = findPalikaByLabel_(spreadsheet, palikaEntry.value);
+  const submissionType = responseValueForTitle_(response, 'पेश गर्ने तरिका / Submission type') || '';
+  const duplicate = hasDuplicate_(spreadsheet, event.event_id, palika.palika_id);
 
   const row = {
-    event_id: activeEvent.event_id,
-    event_name_ne: activeEvent.event_name_ne,
-    event_name_en: activeEvent.event_name_en,
+    event_id: event.event_id,
+    event_name_ne: event.event_name_ne,
+    event_name_en: event.event_name_en,
     palika_id: palika.palika_id,
     palika_name_ne: palika.palika_full_name_ne,
     palika_name_en: palika.palika_full_name_en,
@@ -324,22 +359,29 @@ function normalizeSubmission(e) {
     district_en: palika.district_en,
     province_ne: palika.province_ne,
     province_en: palika.province_en,
-    submitted_at: new Date(),
-    operator_name: response['सञ्चालकको नाम / Operator name'],
+    submitted_at:
+      responseValueForTitle_(response, 'Timestamp') ||
+      responseValueForTitle_(response, 'पेश गरिएको मिति / Submission date and time') ||
+      new Date(),
+    operator_name: responseValueForTitle_(response, 'सञ्चालकको नाम / Operator name'),
     submission_type: englishSubmissionType_(submissionType),
     submission_type_ne: nepaliSubmissionType_(submissionType),
-    is_proxy: submissionType.indexOf('Photo') > -1 || submissionType.indexOf('Voice') > -1,
+    is_proxy: isProxySubmission_(submissionType),
     duplicate_status: duplicate ? 'DUPLICATE_REVIEW_REQUIRED' : '',
     override_duplicate: '',
   };
 
   FORM_FIELD_MAP.forEach(([key, title]) => {
-    if (SUBMISSION_HEADERS.indexOf(key) > -1) {
-      row[key] = normalizeValue_(response[title]);
+    const match = responseEntryForTitle_(response, title);
+    Logger.log(
+      `FORM_FIELD_MAP lookup: key="${key}", title="${title}", found=${match.found}, matchedKey="${match.key}", value="${formatLogValue_(match.value)}"`,
+    );
+    if (SUBMISSION_HEADERS.indexOf(key) > -1 && !Object.prototype.hasOwnProperty.call(row, key)) {
+      row[key] = normalizeValue_(match.value);
     }
   });
 
-  appendObject_(spreadsheet.getSheetByName(DRISHTI.sheets.submissions), SUBMISSION_HEADERS, row);
+  return row;
 }
 
 function buildForm_(form, spreadsheet) {
@@ -551,6 +593,17 @@ function expectedPalikaChoices_(spreadsheet, activeEvent) {
   return master.filter((row) => districts.indexOf(row.district_en) > -1);
 }
 
+function findEventByLabel_(spreadsheet, label) {
+  const eventLabel = String(label || '').trim();
+  if (!eventLabel) return null;
+  return (
+    sheetObjects_(spreadsheet.getSheetByName(DRISHTI.sheets.eventConfig)).find((row) => {
+      const bilingual = `${row.event_name_ne} / ${row.event_name_en}`;
+      return eventLabel === bilingual || eventLabel === row.event_name_ne || eventLabel === row.event_name_en;
+    }) || null
+  );
+}
+
 function findListItem_(form, title) {
   const item = form.getItems(FormApp.ItemType.LIST).find((candidate) => candidate.getTitle() === title);
   if (!item) throw new Error(`Missing list item: ${title}`);
@@ -559,17 +612,232 @@ function findListItem_(form, title) {
 
 function findPalikaByLabel_(spreadsheet, label) {
   const master = sheetObjects_(spreadsheet.getSheetByName(DRISHTI.sheets.palikaMaster));
-  const palika = master.find((row) => row.palika_label === label);
-  if (!palika) throw new Error(`Palika not found / पालिका भेटिएन: ${label}`);
-  return palika;
+  const rawLabel = String(label || '');
+  const lookupLabel = normalizeLookupText_(label);
+  const parts = splitPalikaLabel_(label);
+
+  Logger.log(`findPalikaByLabel_ received label: "${rawLabel}"`);
+  Logger.log(`findPalikaByLabel_ label length: ${rawLabel.length}`);
+  Logger.log(`findPalikaByLabel_ first 10 char codes: ${firstCharCodes_(rawLabel).join(', ')}`);
+  master.forEach((row) => {
+    const storedLabel = row.palika_label || '';
+    const matches = normalizeLookupText_(storedLabel) === lookupLabel;
+    Logger.log(`Palika master label compare: "${storedLabel}" | matches=${matches}`);
+  });
+
+  const exactMatch = lookupLabel
+    ? master.find((row) => normalizeLookupText_(row.palika_label) === lookupLabel)
+    : null;
+  if (exactMatch) return exactMatch;
+
+  const englishFullNameMatch = findPalikaByEnglishFullName_(master, parts.en);
+  if (englishFullNameMatch) {
+    Logger.log(`Palika matched by English full name: "${parts.en}" -> "${englishFullNameMatch.palika_full_name_en}"`);
+    return englishFullNameMatch;
+  }
+
+  const partialMatch = master.find((row) => {
+    const englishCandidates = [row.palika_name_en, row.palika_full_name_en].map(normalizeLookupText_).filter(Boolean);
+    const nepaliCandidates = [row.palika_name_ne, row.palika_full_name_ne].map(normalizeLookupText_).filter(Boolean);
+    const englishLabel = normalizeLookupText_(parts.en || label);
+    const nepaliLabel = normalizeLookupText_(parts.ne || label);
+    return (
+      englishCandidates.some((candidate) => containsLookupText_(englishLabel, candidate)) ||
+      nepaliCandidates.some((candidate) => containsLookupText_(nepaliLabel, candidate))
+    );
+  });
+  if (partialMatch) return partialMatch;
+
+  Logger.log(`Palika not found in master. Using minimal fallback. Unmatched label: ${label}`);
+  return fallbackPalikaFromLabel_(label);
+}
+
+function findPalikaByEnglishFullName_(master, englishLabel) {
+  const englishLookup = normalizeLookupText_(englishLabel);
+  if (!englishLookup) return null;
+  return (
+    master.find((row) => {
+      const fullName = normalizeLookupText_(row.palika_full_name_en);
+      return fullName === englishLookup || containsLookupText_(englishLookup, fullName);
+    }) || null
+  );
+}
+
+function normalizeLookupText_(value) {
+  return String(value || '')
+    .normalize('NFC')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s*\/\s*/g, ' / ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function firstCharCodes_(value) {
+  return String(value || '')
+    .slice(0, 10)
+    .split('')
+    .map((character) => character.charCodeAt(0));
+}
+
+function splitPalikaLabel_(label) {
+  const parts = String(label || '').split(/\s*\/\s*/);
+  return {
+    ne: (parts[0] || '').trim(),
+    en: (parts.slice(1).join(' / ') || parts[0] || '').trim(),
+  };
+}
+
+function containsLookupText_(label, candidate) {
+  if (!label || !candidate) return false;
+  return label.indexOf(candidate) > -1 || candidate.indexOf(label) > -1;
+}
+
+function fallbackPalikaFromLabel_(label) {
+  const parts = splitPalikaLabel_(label);
+  const englishName = parts.en || parts.ne || 'Unknown Palika';
+  const nepaliName = parts.ne || parts.en || 'पालिका नाम उपलब्ध छैन';
+  return {
+    palika_id: `unmatched-${slugify_(englishName || nepaliName)}`,
+    province_en: '',
+    province_ne: '',
+    district_en: '',
+    district_ne: '',
+    palika_name_en: englishName,
+    palika_name_ne: nepaliName,
+    palika_full_name_en: englishName,
+    palika_full_name_ne: nepaliName,
+    palika_label: `${nepaliName} / ${englishName}`,
+    is_proxy: false,
+  };
+}
+
+function slugify_(value) {
+  const slug = normalizeLookupText_(value)
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'palika';
 }
 
 function responseMap_(response) {
   const map = {};
+  if (response.getTimestamp) {
+    map.Timestamp = response.getTimestamp();
+  }
   response.getItemResponses().forEach((itemResponse) => {
     map[itemResponse.getItem().getTitle()] = itemResponse.getResponse();
   });
   return map;
+}
+
+function logResponseMapKeys_(response) {
+  const keys = Object.keys(response || {});
+  Logger.log(`Response map keys (${keys.length}): ${keys.map((key) => `"${key}"`).join(', ')}`);
+}
+
+function responseValueForTitle_(response, title) {
+  return responseEntryForTitle_(response, title).value;
+}
+
+function responseEntryForTitle_(response, title) {
+  const responseMap = response || {};
+  if (Object.prototype.hasOwnProperty.call(responseMap, title)) {
+    return { found: true, key: title, value: responseMap[title] };
+  }
+
+  const normalizedTitle = normalizeLookupText_(title);
+  const matchingKey = Object.keys(responseMap).find((key) => normalizeLookupText_(key) === normalizedTitle);
+  if (matchingKey) {
+    return { found: true, key: matchingKey, value: responseMap[matchingKey] };
+  }
+
+  return { found: false, key: '', value: '' };
+}
+
+function formatLogValue_(value) {
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(formatLogValue_).join('; ');
+  return String(value ?? '');
+}
+
+function formResponseRowMap_(spreadsheet, e) {
+  Logger.log('Using namedValues path: ' + (e && e.namedValues ? 'yes' : 'no'));
+  if (e && e.namedValues) return responseMapFromNamedValues_(e.namedValues);
+  if (e && e.response) return responseMap_(e.response);
+  if (e && e.range) return responseMapFromRange_(e.range);
+
+  const responseSheet = getFormResponsesSheet_(spreadsheet);
+  return responseMapFromRange_(responseSheet.getRange(responseSheet.getLastRow(), 1, 1, responseSheet.getLastColumn()));
+}
+
+function responseMapFromRange_(range) {
+  const sheet = range.getSheet();
+  const columnCount = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, columnCount).getValues()[0];
+  const values = sheet.getRange(range.getRow(), 1, 1, columnCount).getValues()[0];
+  const map = {};
+  headers.forEach((header, index) => {
+    if (header) map[header] = values[index];
+  });
+  return map;
+}
+
+function responseMapFromNamedValues_(namedValues) {
+  const map = {};
+  Object.keys(namedValues).forEach((key) => {
+    const value = namedValues[key];
+    map[key] = Array.isArray(value) && value.length === 1 ? value[0] : value;
+  });
+  return map;
+}
+
+function getFormResponsesSheet_(spreadsheet) {
+  const responseSheet = spreadsheet.getSheetByName('Form Responses 1');
+  if (responseSheet) return responseSheet;
+
+  const matchingSheet = spreadsheet.getSheets().find((sheet) => /^Form Responses \d+$/.test(sheet.getName()));
+  if (matchingSheet) return matchingSheet;
+
+  throw new Error('Form Responses 1 sheet not found / Form Responses 1 पाना भेटिएन');
+}
+
+function cleanupFormResponsesSheet_(spreadsheet) {
+  let responseSheet;
+  try {
+    responseSheet = getFormResponsesSheet_(spreadsheet);
+  } catch (error) {
+    Logger.log(`Skipping Form Responses cleanup: ${error.message}`);
+    return;
+  }
+
+  const lastColumn = responseSheet.getLastColumn();
+  if (lastColumn < 2) {
+    Logger.log('Form Responses cleanup skipped: fewer than two columns.');
+    return;
+  }
+
+  const headers = responseSheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const seen = {};
+  const duplicateColumns = [];
+
+  headers.forEach((header, index) => {
+    const normalizedHeader = normalizeLookupText_(header);
+    if (!normalizedHeader) return;
+    if (seen[normalizedHeader]) {
+      duplicateColumns.push(index + 1);
+      return;
+    }
+    seen[normalizedHeader] = true;
+  });
+
+  duplicateColumns
+    .slice()
+    .reverse()
+    .forEach((column) => responseSheet.deleteColumn(column));
+
+  Logger.log(
+    `Form Responses cleanup complete. Removed ${duplicateColumns.length} duplicate columns: ${duplicateColumns.join(', ') || 'none'}`,
+  );
 }
 
 function hasDuplicate_(spreadsheet, eventId, palikaId) {
@@ -606,6 +874,11 @@ function englishSubmissionType_(value) {
   if (value.indexOf('Photo') > -1) return 'Photo';
   if (value.indexOf('Voice') > -1) return 'Voice';
   return 'Direct';
+}
+
+function isProxySubmission_(value) {
+  const submissionType = englishSubmissionType_(String(value || ''));
+  return submissionType === 'Photo' || submissionType === 'Voice';
 }
 
 function nepaliSubmissionType_(value) {

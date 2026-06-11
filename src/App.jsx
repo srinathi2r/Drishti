@@ -20,8 +20,28 @@ const DATA_URLS = {
   eventConfig: import.meta.env.VITE_EVENT_CONFIG_CSV_URL || localDataUrl("event_config.csv"),
   expectedPalikas:
     import.meta.env.VITE_EXPECTED_PALIKAS_CSV_URL || localDataUrl("expected_palikas.csv"),
-  submissions: import.meta.env.VITE_SUBMISSIONS_CSV_URL || localDataUrl("mock_submissions.csv"),
+  liveSubmissions: import.meta.env.VITE_SHEETS_CSV_URL || import.meta.env.VITE_SUBMISSIONS_CSV_URL || "",
+  mockSubmissions: localDataUrl("mock_submissions.csv"),
   palikaMaster: import.meta.env.VITE_PALIKA_MASTER_CSV_URL || localDataUrl("palika_master.csv"),
+};
+
+const DATA_SOURCE_BADGES = {
+  live: {
+    label: "Live Data / लाइभ डेटा",
+    style: {
+      background: "#dcfce7",
+      border: "1px solid #86efac",
+      color: "#166534",
+    },
+  },
+  demo: {
+    label: "Demo Data / डेमो डेटा",
+    style: {
+      background: "#fef3c7",
+      border: "1px solid #f59e0b",
+      color: "#92400e",
+    },
+  },
 };
 
 const SUMMARY_CARDS = [
@@ -220,6 +240,36 @@ async function fetchCsv(url) {
     throw new Error(`${response.status} ${response.statusText}`);
   }
   return parseCsv(await response.text());
+}
+
+async function fetchSubmissionsCsv(mode = "live") {
+  if (mode === "demo") {
+    const rows = await fetchCsv(DATA_URLS.mockSubmissions);
+    return { rows, source: "demo" };
+  }
+
+  const liveUrl = String(DATA_URLS.liveSubmissions || "").trim();
+  let liveError = "";
+
+  if (liveUrl) {
+    try {
+      const rows = await fetchCsv(liveUrl);
+      if (rows.length) {
+        return { rows, source: "live" };
+      }
+      liveError = "Live submissions CSV returned no rows";
+    } catch (err) {
+      liveError = `Live submissions CSV failed: ${err.message || String(err)}`;
+    }
+  }
+
+  try {
+    const rows = await fetchCsv(DATA_URLS.mockSubmissions);
+    return { rows, source: "demo" };
+  } catch (err) {
+    const mockError = `Demo submissions CSV failed: ${err.message || String(err)}`;
+    throw new Error(liveError ? `${liveError}; ${mockError}` : mockError);
+  }
 }
 
 function Bi({ ne, en, className = "" }) {
@@ -524,6 +574,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastRefresh, setLastRefresh] = useState(null);
+  const [submissionMode, setSubmissionMode] = useState("live");
+  const [submissionSource, setSubmissionSource] = useState("demo");
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [selectedDistrict, setSelectedDistrict] = useState("all");
   const [selectedPalikaId, setSelectedPalikaId] = useState("");
@@ -531,20 +583,21 @@ function App() {
   const loadData = useCallback(async () => {
     setError("");
     try {
-      const [eventConfig, expectedPalikas, submissions, palikaMaster] = await Promise.all([
+      const [eventConfig, expectedPalikas, submissionsResult, palikaMaster] = await Promise.all([
         fetchCsv(DATA_URLS.eventConfig),
         fetchCsv(DATA_URLS.expectedPalikas),
-        fetchCsv(DATA_URLS.submissions),
+        fetchSubmissionsCsv(submissionMode),
         fetchCsv(DATA_URLS.palikaMaster),
       ]);
-      setData({ eventConfig, expectedPalikas, submissions, palikaMaster });
+      setData({ eventConfig, expectedPalikas, submissions: submissionsResult.rows, palikaMaster });
+      setSubmissionSource(submissionsResult.source);
       setLastRefresh(new Date());
     } catch (err) {
       setError(err.message || String(err));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [submissionMode]);
 
   useEffect(() => {
     loadData();
@@ -700,6 +753,16 @@ function App() {
     setSelectedPalikaId("");
   };
 
+  const toggleSubmissionMode = () => {
+    setLoading(true);
+    setSelectedPalikaId("");
+    setSubmissionMode((mode) => (mode === "live" ? "demo" : "live"));
+  };
+
+  const sourceBadge = DATA_SOURCE_BADGES[submissionSource] || DATA_SOURCE_BADGES.demo;
+  const toggleLabel =
+    submissionMode === "live" ? "डेमो हेर्नुहोस् / View Demo" : "लाइभ हेर्नुहोस् / View Live";
+
   const exportSummary = () => {
     setExportModalOpen(false);
     const exportTimestamp = formatDate(new Date().toISOString());
@@ -777,6 +840,38 @@ function App() {
             <span>
               {formatNumber(scopedExpected.length)} <span lang="ne">अपेक्षित पालिका</span> / expected palikas
             </span>
+            <span
+              style={{
+                ...sourceBadge.style,
+                borderRadius: "999px",
+                display: "inline-flex",
+                fontSize: "0.78rem",
+                fontWeight: 800,
+                lineHeight: 1,
+                padding: "0.42rem 0.65rem",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {sourceBadge.label}
+            </span>
+            <button
+              type="button"
+              onClick={toggleSubmissionMode}
+              style={{
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                borderRadius: "999px",
+                color: "#0f172a",
+                cursor: "pointer",
+                fontSize: "0.78rem",
+                fontWeight: 800,
+                lineHeight: 1,
+                padding: "0.42rem 0.65rem",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {toggleLabel}
+            </button>
             <span className="time-pill">
               <Clock size={16} aria-hidden="true" />
               <span className="meta-line">
@@ -879,6 +974,10 @@ function App() {
                     ne: row.submission?.submission_type_ne || "—",
                     en: row.submission?.submission_type || "—",
                   };
+                  const palikaNameNe = row.submission?.palika_name_ne || row.palika_name_ne;
+                  const palikaNameEn = row.submission?.palika_name_en || row.palika_name_en;
+                  const districtNe = row.submission?.district_ne || row.district_ne;
+                  const districtEn = row.submission?.district_en || row.district_en;
                   return (
                     <tr
                       key={row.palika_id}
@@ -906,11 +1005,11 @@ function App() {
                         </span>
                       </td>
                       <td>
-                        <strong lang="ne">{row.palika_name_ne}</strong>
-                        <span>{row.palika_name_en}</span>
+                        <strong lang="ne">{palikaNameNe}</strong>
+                        <span>{palikaNameEn}</span>
                       </td>
                       <td>
-                        {row.district_ne} / {row.district_en}
+                        {districtNe} / {districtEn}
                       </td>
                       <td>{submitted ? formatDate(row.submission.submitted_at) : "—"}</td>
                       <td>{submitted ? `${type.ne} / ${type.en}` : "—"}</td>
