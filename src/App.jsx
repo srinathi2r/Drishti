@@ -528,7 +528,7 @@ function printableSummaryHtml({ event, summary, rows, expectedCount, lastUpdated
 <html lang="ne">
 <head>
 <meta charset="utf-8">
-<title>DRISHTI Export</title>
+<title>Disaster Situation Dashboard Export</title>
 <style>
   @page { size: A4; margin: 16mm; }
   body { font-family: "Kohinoor Devanagari", "Devanagari Sangam MN", Arial, sans-serif; color: #17201c; }
@@ -543,7 +543,7 @@ function printableSummaryHtml({ event, summary, rows, expectedCount, lastUpdated
 </style>
 </head>
 <body>
-  <h1>दृष्टि / DRISHTI</h1>
+  <h1>विपद् स्थिति ड्यासबोर्ड / Disaster Situation Dashboard</h1>
   <p>संघीय मामिला तथा सामान्य प्रशासन मन्त्रालय / Ministry of Federal Affairs and General Administration</p>
   <div class="meta">
     <p><strong>घटना / Event:</strong> ${event.event_name_ne} / ${event.event_name_en}</p>
@@ -767,7 +767,7 @@ function App() {
     setExportModalOpen(false);
     const exportTimestamp = formatDate(new Date().toISOString());
     const summaryRows = [
-      ["दृष्टि निर्यात / DRISHTI Export", ""],
+      ["विपद् स्थिति ड्यासबोर्ड निर्यात / Disaster Situation Dashboard Export", ""],
       ["घटना / Event", `${activeEvent.event_name_ne} / ${activeEvent.event_name_en}`],
       ["जिल्ला / Districts", `${activeEvent.affected_districts_ne} / ${activeEvent.affected_districts_en}`],
       ["कुल अपेक्षित पालिका / Total expected palikas", scopedExpected.length],
@@ -823,7 +823,7 @@ function App() {
     <main className="app-shell">
       <header className="event-header">
         <div>
-          <p className="eyebrow">दृष्टि / DRISHTI</p>
+          <p className="eyebrow">विपद् स्थिति ड्यासबोर्ड / Disaster Situation Dashboard</p>
           <h1>
             <span lang="ne">
               <TitleLines text={activeEvent.event_name_ne || "घटना लोड हुँदै"} />

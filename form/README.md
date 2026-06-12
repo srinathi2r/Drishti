@@ -1,4 +1,4 @@
-# DRISHTI Google Form setup
+# IRA Google Form setup
 
 1. Open [script.google.com](https://script.google.com/) and create a new Apps Script project.
 2. Paste `Code.gs` into the project.

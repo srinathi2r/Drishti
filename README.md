@@ -1,8 +1,8 @@
-# DRISHTI
+# Disaster Situation Dashboard
 
 Disaster Situation Reporting Tool for Nepal's Ministry of Federal Affairs and General Administration (MoFAGA).
 
-DRISHTI is a bilingual Nepali/English Initial Rapid Assessment (IRA) workflow for the first 72 hours after a disaster:
+This repository contains a bilingual Nepali/English Initial Rapid Assessment (IRA) workflow for the first 72 hours after a disaster:
 
 - Google Form for palika-level data entry
 - Google Sheets database with event-scoped palika lists

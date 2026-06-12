@@ -1,4 +1,4 @@
-# DRISHTI Google Sheets schema
+# IRA Google Sheets schema
 
 ## Tab 1: Event Config
 

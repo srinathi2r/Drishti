@@ -1,5 +1,5 @@
 /**
- * DRISHTI Google Form + Google Sheets setup for MoFAGA IRA reporting.
+ * Initial Rapid Assessment Google Form + Google Sheets setup for MoFAGA IRA reporting.
  *
  * Usage:
  * 1. Create a new Apps Script project.
@@ -10,8 +10,8 @@
  */
 
 const DRISHTI = {
-  spreadsheetName: 'DRISHTI IRA Database / दृष्टि प्रारम्भिक द्रुत मूल्यांकन डाटाबेस',
-  formName: 'दृष्टि प्रारम्भिक द्रुत मूल्यांकन फाराम / DRISHTI Initial Rapid Assessment Form',
+  spreadsheetName: 'प्रारम्भिक द्रुत मूल्यांकन डाटाबेस / Initial Rapid Assessment Database',
+  formName: 'प्रारम्भिक द्रुत मूल्यांकन फाराम / Initial Rapid Assessment Form',
   sheets: {
     eventConfig: 'Event Config',
     submissions: 'Submissions',
@@ -285,7 +285,7 @@ function setupDrishti() {
     [SCRIPT_PROPERTIES.legacyFormId]: form.getId(),
   });
 
-  Logger.log(resources.created ? 'Creating new DRISHTI Sheet and Form resources.' : 'Updating existing DRISHTI Sheet and Form resources.');
+  Logger.log(resources.created ? 'Creating new IRA Sheet and Form resources.' : 'Updating existing IRA Sheet and Form resources.');
   Logger.log(`Spreadsheet URL / Google Sheets: ${spreadsheet.getUrl()}`);
   Logger.log(`Form URL / Google Form: ${form.getPublishedUrl()}`);
   Logger.log(`QR URL / क्यूआर: ${qrCodeUrl_(form.getPublishedUrl())}`);
@@ -432,18 +432,18 @@ function getOrCreateResources_() {
 
   if (sheetId && formId) {
     try {
-      Logger.log(`Updating existing DRISHTI resources. Sheet ID: ${sheetId}; Form ID: ${formId}`);
+      Logger.log(`Updating existing IRA resources. Sheet ID: ${sheetId}; Form ID: ${formId}`);
       return {
         spreadsheet: SpreadsheetApp.openById(sheetId),
         form: FormApp.openById(formId),
         created: false,
       };
     } catch (error) {
-      Logger.log(`Stored DRISHTI resource IDs could not be opened. Creating new resources instead. Error: ${error.message}`);
+      Logger.log(`Stored IRA resource IDs could not be opened. Creating new resources instead. Error: ${error.message}`);
     }
   }
 
-  Logger.log('Creating new DRISHTI Sheet and Form resources because saved IDs are empty.');
+  Logger.log('Creating new IRA Sheet and Form resources because saved IDs are empty.');
   return {
     spreadsheet: SpreadsheetApp.create(DRISHTI.spreadsheetName),
     form: FormApp.create(DRISHTI.formName),
