@@ -29,6 +29,7 @@ const DRISHTI = {
 const SCRIPT_PROPERTIES = {
   sheetId: 'DRISHTI_SHEET_ID',
   formId: 'DRISHTI_FORM_ID',
+  autoCleanupFormResponses: 'DRISHTI_AUTO_CLEANUP_FORM_RESPONSES',
   legacySheetId: 'SPREADSHEET_ID',
   legacyFormId: 'FORM_ID',
 };
@@ -283,7 +284,11 @@ function setupDrishti() {
   importPalikaMasterIfConfigured_(spreadsheet);
 
   configureForm_(form, spreadsheet);
-  cleanupFormResponsesSheet_(spreadsheet);
+  try {
+    maybeCleanupFormResponsesSheet_(spreadsheet);
+  } catch (error) {
+    Logger.log(`Form Responses cleanup failed but setup will continue: ${error.stack || error.message}`);
+  }
 
   PropertiesService.getScriptProperties().setProperties({
     [SCRIPT_PROPERTIES.sheetId]: spreadsheet.getId(),
@@ -341,6 +346,13 @@ function onFormSubmit(e) {
 
 function normalizeSubmission(e) {
   onFormSubmit(e);
+}
+
+// Run this manually only if repeated setupDrishti() runs have created duplicate
+// columns in the legacy Google Form response sheet. It is not required for the
+// standalone cascading HTML form, which writes directly to Submissions.
+function cleanupFormResponsesSheet() {
+  cleanupFormResponsesSheet_(getSpreadsheet_());
 }
 
 function doPost(e) {
@@ -987,6 +999,21 @@ function getFormResponsesSheet_(spreadsheet) {
   throw new Error('Form Responses 1 sheet not found / Form Responses 1 पाना भेटिएन');
 }
 
+function maybeCleanupFormResponsesSheet_(spreadsheet) {
+  const autoCleanup = String(
+    PropertiesService.getScriptProperties().getProperty(SCRIPT_PROPERTIES.autoCleanupFormResponses) || '',
+  ).toUpperCase();
+
+  if (autoCleanup !== 'TRUE') {
+    Logger.log(
+      `Form Responses cleanup skipped during setup. Run cleanupFormResponsesSheet() manually, or set ${SCRIPT_PROPERTIES.autoCleanupFormResponses}=TRUE to enable automatic cleanup.`,
+    );
+    return;
+  }
+
+  cleanupFormResponsesSheet_(spreadsheet);
+}
+
 function cleanupFormResponsesSheet_(spreadsheet) {
   let responseSheet;
   try {
@@ -1019,7 +1046,14 @@ function cleanupFormResponsesSheet_(spreadsheet) {
   duplicateColumns
     .slice()
     .reverse()
-    .forEach((column) => responseSheet.deleteColumn(column));
+    .forEach((column) => {
+      const maxColumns = responseSheet.getMaxColumns();
+      if (column < 1 || column > maxColumns) {
+        Logger.log(`Skipping Form Responses cleanup column ${column}: current max columns is ${maxColumns}.`);
+        return;
+      }
+      responseSheet.deleteColumn(column);
+    });
 
   Logger.log(
     `Form Responses cleanup complete. Removed ${duplicateColumns.length} duplicate columns: ${duplicateColumns.join(', ') || 'none'}`,
