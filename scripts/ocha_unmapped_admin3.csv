@@ -1,0 +1,23 @@
+adm3_pcode,adm3_name,adm2_pcode,adm2_name,adm1_pcode,adm1_name,normalized_province,normalized_district,normalized_palika,reason
+NP0106595,Koshi Tappu,NP0106,Sunsari,NP01,Koshi,koshi,sunsari,koshi tappu,no palika_master match
+NP0114595,Koshi Tappu,NP0114,Udayapur,NP01,Koshi,koshi,udayapur,koshi tappu,no palika_master match
+NP0215595,Koshi Tappu,NP0215,Saptari,NP02,Madhesh,madhesh,saptari,koshi tappu,no palika_master match
+NP0233595,Parsa,NP0233,Bara,NP02,Madhesh,madhesh,bara,parsa,no palika_master match
+NP0234595,Parsa,NP0234,Parsa,NP02,Madhesh,madhesh,parsa,parsa,no palika_master match
+NP0234597,Chitawan,NP0234,Parsa,NP02,Madhesh,madhesh,parsa,chitawan,no palika_master match
+NP0328596,Shivapuri,NP0328,Nuwakot,NP03,Bagmati,bagmati,nuwakot,shivapuri,duplicate OCHA Admin3 for bagmati-nuwakot-shivapuri-gaunpalika; local-government P-code NP0328410 retained
+NP0328597,Langtang,NP0328,Nuwakot,NP03,Bagmati,bagmati,nuwakot,langtang,no palika_master match
+NP0331595,Parsa,NP0331,Makwanpur,NP03,Bagmati,bagmati,makwanpur,parsa,no palika_master match
+NP0331597,Chitawan,NP0331,Makwanpur,NP03,Bagmati,bagmati,makwanpur,chitawan,no palika_master match
+NP0335597,Chitawan,NP0335,Chitawan,NP03,Bagmati,bagmati,chitwan,chitawan,no palika_master match
+NP0443598,Dhorpatan,NP0443,Baglung,NP04,Gandaki,gandaki,baglung,dhorpatan,duplicate OCHA Admin3 for gandaki-baglung-dhorpatan-municipality; local-government P-code NP0443301 retained
+NP0444598,Dhorpatan,NP0444,Myagdi,NP04,Gandaki,gandaki,myagdi,dhorpatan,no palika_master match
+NP0447597,Chitawan,NP0447,Nawalparasi East,NP04,Gandaki,gandaki,nawalpur,chitawan,no palika_master match
+NP0548599,Lumbini Sanskritik,NP0548,Rupandehi,NP05,Lumbini,lumbini,rupandehi,lumbini sanskritik,duplicate OCHA Admin3 for lumbini-rupandehi-lumbini-sanskritik-municipality; local-government P-code NP0548304 retained
+NP0552598,Dhorpatan,NP0552,Rukum East,NP05,Lumbini,lumbini,eastern rukum,dhorpatan,no palika_master match
+NP0558597,Bardiya,NP0558,Bardiya,NP05,Lumbini,lumbini,bardiya,bardiya,no palika_master match
+NP0767597,Khaptad,NP0767,Bajhang,NP07,Sudur Paschim,sudurpashchim,bajhang,khaptad,no palika_master match
+NP0768597,Khaptad,NP0768,Bajura,NP07,Sudur Paschim,sudurpashchim,bajura,khaptad,no palika_master match
+NP0769597,Khaptad,NP0769,Achham,NP07,Sudur Paschim,sudurpashchim,achham,khaptad,no palika_master match
+NP0770597,Khaptad,NP0770,Doti,NP07,Sudur Paschim,sudurpashchim,doti,khaptad,no palika_master match
+NP0772597,Shuklaphanta,NP0772,Kanchanpur,NP07,Sudur Paschim,sudurpashchim,kanchanpur,shuklaphanta,duplicate OCHA Admin3 for sudurpashchim-kanchanpur-shuklaphanta-municipality; local-government P-code NP0772304 retained

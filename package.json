@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "data:fetch": "python3 scripts/fetch_palika_master.py",
+    "data:admin": "python3 scripts/fetch_ocha_admin_hierarchy.py",
     "data:seed": "python3 scripts/build_seed_data.py",
     "pdf:build": "node scripts/generate_print_pdf.mjs"
   },
