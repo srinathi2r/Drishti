@@ -39,6 +39,99 @@ PROVINCE_NE = {
     "Sudurpashchim": "सुदूरपश्चिम",
 }
 
+DISTRICT_ALIASES = {
+    "chitawan": "chitwan",
+    "dhanusha": "dhanusa",
+    "kapilbastu": "kapilvastu",
+    "makawanpur": "makwanpur",
+    "nawalparasi west": "parasi",
+    "pancthar": "panchthar",
+    "rukum east": "eastern rukum",
+    "rukum west": "western rukum",
+    "tanahu": "tanahun",
+    "terathum": "terhathum",
+}
+
+DISTRICT_NE = {
+    "achham": "अछाम",
+    "arghakhanchi": "अर्घाखाँची",
+    "baglung": "बागलुङ",
+    "baitadi": "बैतडी",
+    "bajhang": "बझाङ",
+    "bajura": "बाजुरा",
+    "banke": "बाँके",
+    "bara": "बारा",
+    "bardiya": "बर्दिया",
+    "bhaktapur": "भक्तपुर",
+    "bhojpur": "भोजपुर",
+    "chitwan": "चितवन",
+    "dadeldhura": "डडेल्धुरा",
+    "dailekh": "दैलेख",
+    "dang": "दाङ",
+    "darchula": "दार्चुला",
+    "dhading": "धादिङ",
+    "dhankuta": "धनकुटा",
+    "dhanusa": "धनुषा",
+    "dolakha": "दोलखा",
+    "dolpa": "डोल्पा",
+    "doti": "डोटी",
+    "eastern rukum": "पूर्वी रुकुम",
+    "gorkha": "गोरखा",
+    "gulmi": "गुल्मी",
+    "humla": "हुम्ला",
+    "ilam": "इलाम",
+    "jajarkot": "जाजरकोट",
+    "jhapa": "झापा",
+    "jumla": "जुम्ला",
+    "kailali": "कैलाली",
+    "kalikot": "कालिकोट",
+    "kanchanpur": "कञ्चनपुर",
+    "kapilvastu": "कपिलवस्तु",
+    "kaski": "कास्की",
+    "kathmandu": "काठमाडौँ",
+    "kavrepalanchok": "काभ्रेपलाञ्चोक",
+    "khotang": "खोटाङ",
+    "lalitpur": "ललितपुर",
+    "lamjung": "लमजुङ",
+    "mahottari": "महोत्तरी",
+    "makwanpur": "मकवानपुर",
+    "manang": "मनाङ",
+    "morang": "मोरङ",
+    "mugu": "मुगु",
+    "mustang": "मुस्ताङ",
+    "myagdi": "म्याग्दी",
+    "nawalpur": "नवलपुर",
+    "nuwakot": "नुवाकोट",
+    "okhaldhunga": "ओखलढुङ्गा",
+    "palpa": "पाल्पा",
+    "panchthar": "पाँचथर",
+    "parasi": "पश्चिम नवलपरासी",
+    "parbat": "पर्वत",
+    "parsa": "पर्सा",
+    "pyuthan": "प्यूठान",
+    "ramechhap": "रामेछाप",
+    "rasuwa": "रसुवा",
+    "rautahat": "रौतहट",
+    "rolpa": "रोल्पा",
+    "rupandehi": "रुपन्देही",
+    "salyan": "सल्यान",
+    "sankhuwasabha": "संखुवासभा",
+    "saptari": "सप्तरी",
+    "sarlahi": "सर्लाही",
+    "sindhuli": "सिन्धुली",
+    "sindhupalchok": "सिन्धुपाल्चोक",
+    "siraha": "सिरहा",
+    "solukhumbu": "सोलुखुम्बु",
+    "sunsari": "सुनसरी",
+    "surkhet": "सुर्खेत",
+    "syangja": "स्याङ्जा",
+    "tanahun": "तनहुँ",
+    "taplejung": "ताप्लेजुङ",
+    "terhathum": "तेह्रथुम",
+    "udayapur": "उदयपुर",
+    "western rukum": "पश्चिम रुकुम",
+}
+
 TYPE_NE = {
     "Metropolitan City": "महानगरपालिका",
     "Sub-Metropolitan City": "उपमहानगरपालिका",
@@ -74,6 +167,13 @@ def slug(value: str) -> str:
     return text.strip("-")
 
 
+def location_key(value: str) -> str:
+    text = clean(value).lower()
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return DISTRICT_ALIASES.get(text, text)
+
+
 def district_ne_lookup() -> dict[tuple[str, str], str]:
     wards = fetch_tables(WARDS_URL)[1]
     lookup: dict[tuple[str, str], str] = {}
@@ -82,6 +182,7 @@ def district_ne_lookup() -> dict[tuple[str, str], str]:
         district = clean(row["Districts"])
         district_ne = clean(row["जिल्ला"])
         lookup[(province, district)] = district_ne
+        lookup[(province, location_key(district))] = district_ne
     return lookup
 
 
@@ -146,7 +247,11 @@ def build_master() -> list[dict[str, object]]:
         palika = str(row["palika_name_en"])
         palika_type = str(row["palika_type_en"])
         palika_id = f"{slug(province)}-{slug(district)}-{slug(palika)}-{slug(palika_type)}"
-        district_ne = district_names.get((province, district), "")
+        district_ne = (
+            district_names.get((province, district))
+            or district_names.get((province, location_key(district)))
+            or DISTRICT_NE.get(location_key(district), "")
+        )
         palika_ne = str(row["palika_name_ne"]) or palika
         full_en = f"{palika} {palika_type}"
         full_ne = f"{palika_ne} {row['palika_type_ne']}"

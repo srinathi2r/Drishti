@@ -63,6 +63,96 @@ PROVINCE_ALIASES = {
     "sudur paschim": "sudurpashchim",
 }
 
+PROVINCE_NE_BY_KEY = {
+    "koshi": "कोशी",
+    "madhesh": "मधेश",
+    "bagmati": "बागमती",
+    "gandaki": "गण्डकी",
+    "lumbini": "लुम्बिनी",
+    "karnali": "कर्णाली",
+    "sudurpashchim": "सुदूरपश्चिम",
+}
+
+DISTRICT_NE_BY_KEY = {
+    "achham": "अछाम",
+    "arghakhanchi": "अर्घाखाँची",
+    "baglung": "बागलुङ",
+    "baitadi": "बैतडी",
+    "bajhang": "बझाङ",
+    "bajura": "बाजुरा",
+    "banke": "बाँके",
+    "bara": "बारा",
+    "bardiya": "बर्दिया",
+    "bhaktapur": "भक्तपुर",
+    "bhojpur": "भोजपुर",
+    "chitwan": "चितवन",
+    "dadeldhura": "डडेल्धुरा",
+    "dailekh": "दैलेख",
+    "dang": "दाङ",
+    "darchula": "दार्चुला",
+    "dhading": "धादिङ",
+    "dhankuta": "धनकुटा",
+    "dhanusa": "धनुषा",
+    "dolakha": "दोलखा",
+    "dolpa": "डोल्पा",
+    "doti": "डोटी",
+    "eastern rukum": "पूर्वी रुकुम",
+    "gorkha": "गोरखा",
+    "gulmi": "गुल्मी",
+    "humla": "हुम्ला",
+    "ilam": "इलाम",
+    "jajarkot": "जाजरकोट",
+    "jhapa": "झापा",
+    "jumla": "जुम्ला",
+    "kailali": "कैलाली",
+    "kalikot": "कालिकोट",
+    "kanchanpur": "कञ्चनपुर",
+    "kapilvastu": "कपिलवस्तु",
+    "kaski": "कास्की",
+    "kathmandu": "काठमाडौँ",
+    "kavrepalanchok": "काभ्रेपलाञ्चोक",
+    "khotang": "खोटाङ",
+    "lalitpur": "ललितपुर",
+    "lamjung": "लमजुङ",
+    "mahottari": "महोत्तरी",
+    "makwanpur": "मकवानपुर",
+    "manang": "मनाङ",
+    "morang": "मोरङ",
+    "mugu": "मुगु",
+    "mustang": "मुस्ताङ",
+    "myagdi": "म्याग्दी",
+    "nawalpur": "नवलपुर",
+    "nuwakot": "नुवाकोट",
+    "okhaldhunga": "ओखलढुङ्गा",
+    "palpa": "पाल्पा",
+    "panchthar": "पाँचथर",
+    "parasi": "पश्चिम नवलपरासी",
+    "parbat": "पर्वत",
+    "parsa": "पर्सा",
+    "pyuthan": "प्यूठान",
+    "ramechhap": "रामेछाप",
+    "rasuwa": "रसुवा",
+    "rautahat": "रौतहट",
+    "rolpa": "रोल्पा",
+    "rupandehi": "रुपन्देही",
+    "salyan": "सल्यान",
+    "sankhuwasabha": "संखुवासभा",
+    "saptari": "सप्तरी",
+    "sarlahi": "सर्लाही",
+    "sindhuli": "सिन्धुली",
+    "sindhupalchok": "सिन्धुपाल्चोक",
+    "siraha": "सिरहा",
+    "solukhumbu": "सोलुखुम्बु",
+    "sunsari": "सुनसरी",
+    "surkhet": "सुर्खेत",
+    "syangja": "स्याङ्जा",
+    "tanahun": "तनहुँ",
+    "taplejung": "ताप्लेजुङ",
+    "terhathum": "तेह्रथुम",
+    "udayapur": "उदयपुर",
+    "western rukum": "पश्चिम रुकुम",
+}
+
 PALIKA_ALIASES = {
     "bagachour": "bagchaur",
     "bheri malika": "bheri",
@@ -452,8 +542,15 @@ def build_hierarchy(
     province_ne = {}
     district_ne = {}
     for row in palika_rows:
-        province_ne.setdefault(province_key(row["province_en"]), row["province_ne"])
-        district_ne.setdefault((province_key(row["province_en"]), district_key(row["district_en"])), row["district_ne"])
+        province_lookup_key = province_key(row["province_en"])
+        district_lookup_key = (province_lookup_key, district_key(row["district_en"]))
+        if not province_ne.get(province_lookup_key):
+            province_ne[province_lookup_key] = row["province_ne"] or PROVINCE_NE_BY_KEY.get(province_lookup_key, "")
+        if not district_ne.get(district_lookup_key):
+            district_ne[district_lookup_key] = row["district_ne"] or DISTRICT_NE_BY_KEY.get(
+                district_lookup_key[1],
+                "",
+            )
 
     provinces = []
     for province in sorted(admin1_rows, key=lambda item: item["adm1_pcode"]):
@@ -468,7 +565,8 @@ def build_hierarchy(
             districts.append(
                 {
                     "name_en": district["adm2_name"],
-                    "name_ne": district_ne.get(district_lookup_key, ""),
+                    "name_ne": district_ne.get(district_lookup_key)
+                    or DISTRICT_NE_BY_KEY.get(district_lookup_key[1], ""),
                     "ocha_adm2_pcode": district["adm2_pcode"],
                     "palika_count": len(palikas),
                     "palikas": [palika_record(row, matched_admin3.get(row["palika_id"])) for row in palikas],
@@ -477,7 +575,7 @@ def build_hierarchy(
         provinces.append(
             {
                 "name_en": province["adm1_name"],
-                "name_ne": province_ne.get(province_lookup_key, ""),
+                "name_ne": province_ne.get(province_lookup_key) or PROVINCE_NE_BY_KEY.get(province_lookup_key, ""),
                 "ocha_adm1_pcode": province["adm1_pcode"],
                 "district_count": len(districts),
                 "palika_count": sum(district["palika_count"] for district in districts),

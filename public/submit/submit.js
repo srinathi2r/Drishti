@@ -116,6 +116,7 @@ function buildPayload() {
   form.querySelectorAll("[data-field]").forEach((input) => {
     fields[input.dataset.field] = fieldValue(input);
   });
+  fields.submission_type = "Direct";
 
   return {
     client_submission_id: generateClientSubmissionId(),

@@ -630,9 +630,9 @@ function configureForm_(form, spreadsheet) {
   form.setDescription(FORM_DESCRIPTION);
   ensureFormDestination_(form, spreadsheet);
   form.setCollectEmail(false);
-  form.setAllowResponseEdits(true);
+  form.setAllowResponseEdits(false);
   form.setConfirmationMessage(
-    'पेश गरिएको विवरण प्राप्त भयो। आवश्यकता परे “Edit response” बाट सच्याउन सकिन्छ। / Your submission has been received. Use “Edit response” if correction is needed.',
+    'पेश गरिएको विवरण प्राप्त भयो। सच्याउनुपर्ने भए कृपया DEOC समन्वयकर्तालाई सम्पर्क गर्नुहोस्। / Your submission has been received. Contact the DEOC coordinator if a correction is needed.',
   );
   removeAllFormItems_(form);
   buildForm_(form, spreadsheet);

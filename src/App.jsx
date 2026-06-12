@@ -934,6 +934,8 @@ function App() {
   const sourceBadge = DATA_SOURCE_BADGES[submissionSource] || DATA_SOURCE_BADGES.demo;
   const toggleLabel =
     submissionMode === "live" ? "डेमो हेर्नुहोस् / View Demo" : "लाइभ हेर्नुहोस् / View Live";
+  const submissionCoverageCount = submittedRows.length;
+  const karnaliDrillTargetCount = scopedExpected.length;
 
   const exportSummary = () => {
     setExportModalOpen(false);
@@ -942,7 +944,8 @@ function App() {
       ["विपद् स्थिति ड्यासबोर्ड निर्यात / Disaster Situation Dashboard Export", ""],
       ["घटना / Event", `${eventLabel.ne} / ${eventLabel.en}`],
       ["जिल्ला / Districts", `${districtSummary.ne} / ${districtSummary.en}`],
-      ["कुल अपेक्षित पालिका / Total expected palikas", scopedExpected.length],
+      ["पेश गरिएका पालिका / Submission Coverage", submissionCoverageCount],
+      ["कर्णाली अभ्यास लक्ष्य / Karnali drill target", karnaliDrillTargetCount],
       ["रिपोर्ट गरेका पालिका / Reporting palikas", exportSubmittedRows.length],
       ["निर्यात समय / Export timestamp", exportTimestamp],
       ["समन्वयकर्ताद्वारा पुष्टि / Confirmed by coordinator", "हो / Yes"],
@@ -1008,8 +1011,18 @@ function App() {
               <span className="meta-line" lang="ne">{districtSummary.ne}</span>
               <span className="meta-line meta-english">{districtSummary.en}</span>
             </span>
-            <span>
-              {formatNumber(scopedExpected.length)} <span lang="ne">अपेक्षित पालिका</span> / expected palikas
+            <span className="district-pill">
+              <span className="meta-line" lang="ne">
+                {formatNumber(submissionCoverageCount)} पेश गरिएका पालिका
+              </span>
+              <span className="meta-line meta-english">
+                Submission Coverage: {formatNumber(submissionCoverageCount)} palikas
+              </span>
+              {karnaliDrillTargetCount ? (
+                <span className="meta-line meta-english">
+                  कर्णाली अभ्यास लक्ष्य: {formatNumber(karnaliDrillTargetCount)} / Karnali drill target
+                </span>
+              ) : null}
             </span>
             <span
               style={{
@@ -1119,22 +1132,27 @@ function App() {
             en="Submission Tracker"
             right={
               <span className="count-pill">
-                {filteredExpectedSubmittedCount} / {filteredExpected.length}
-                {filteredAdditionalSubmittedCount ? ` +${filteredAdditionalSubmittedCount}` : ""}
+                {formatNumber(filteredSubmittedRows.length)}
               </span>
             }
           />
           <p className="tracker-status">
             <span lang="ne">
-              {filteredExpectedSubmittedCount} मध्ये {filteredExpected.length} अपेक्षित पालिकाले रिपोर्ट गरेका छन्
+              {formatNumber(filteredSubmittedRows.length)} पेश गरिएका पालिका यस फिल्टरमा देखिएका छन्
+              {filteredExpected.length
+                ? `; कर्णाली अभ्यास लक्ष्य: ${filteredExpectedSubmittedCount}/${filteredExpected.length}`
+                : ""}
               {filteredAdditionalSubmittedCount
-                ? `; ${filteredAdditionalSubmittedCount} अतिरिक्त पेशी scope बाहिर छन्`
+                ? `; ${filteredAdditionalSubmittedCount} मूल दायराभन्दा बाहिर छन्`
                 : ""}
             </span>
             <span>
-              {filteredExpectedSubmittedCount} of {filteredExpected.length} expected palikas reported
+              {formatNumber(filteredSubmittedRows.length)} submitted palikas shown in this filter
+              {filteredExpected.length
+                ? `; Karnali drill target: ${filteredExpectedSubmittedCount}/${filteredExpected.length}`
+                : ""}
               {filteredAdditionalSubmittedCount
-                ? `; ${filteredAdditionalSubmittedCount} additional submission${filteredAdditionalSubmittedCount === 1 ? "" : "s"} outside scope`
+                ? `; ${filteredAdditionalSubmittedCount} outside original scope`
                 : ""}
             </span>
           </p>

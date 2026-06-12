@@ -1180,7 +1180,7 @@
         },
         {
           "name_en": "Terhathum",
-          "name_ne": "",
+          "name_ne": "तेह्रथुम",
           "ocha_adm2_pcode": "NP0108",
           "palika_count": 6,
           "palikas": [
@@ -5564,7 +5564,7 @@
         },
         {
           "name_en": "Makwanpur",
-          "name_ne": "",
+          "name_ne": "मकवानपुर",
           "ocha_adm2_pcode": "NP0331",
           "palika_count": 10,
           "palikas": [
@@ -5712,7 +5712,7 @@
         },
         {
           "name_en": "Chitawan",
-          "name_ne": "",
+          "name_ne": "चितवन",
           "ocha_adm2_pcode": "NP0335",
           "palika_count": 7,
           "palikas": [
@@ -6251,7 +6251,7 @@
         },
         {
           "name_en": "Tanahu",
-          "name_ne": "",
+          "name_ne": "तनहुँ",
           "ocha_adm2_pcode": "NP0440",
           "palika_count": 10,
           "palikas": [
@@ -7262,7 +7262,7 @@
         },
         {
           "name_en": "Nawalparasi West",
-          "name_ne": "",
+          "name_ne": "पश्चिम नवलपरासी",
           "ocha_adm2_pcode": "NP0547",
           "palika_count": 7,
           "palikas": [
@@ -7600,7 +7600,7 @@
         },
         {
           "name_en": "Kapilbastu",
-          "name_ne": "",
+          "name_ne": "कपिलवस्तु",
           "ocha_adm2_pcode": "NP0549",
           "palika_count": 10,
           "palikas": [
@@ -8016,7 +8016,7 @@
         },
         {
           "name_en": "Rukum East",
-          "name_ne": "",
+          "name_ne": "पूर्वी रुकुम",
           "ocha_adm2_pcode": "NP0552",
           "palika_count": 3,
           "palikas": [
@@ -8745,7 +8745,7 @@
       "districts": [
         {
           "name_en": "Rukum West",
-          "name_ne": "",
+          "name_ne": "पश्चिम रुकुम",
           "ocha_adm2_pcode": "NP0652",
           "palika_count": 6,
           "palikas": [
@@ -9940,7 +9940,7 @@
       "districts": [
         {
           "name_en": "Bajhang",
-          "name_ne": "",
+          "name_ne": "बझाङ",
           "ocha_adm2_pcode": "NP0767",
           "palika_count": 12,
           "palikas": [
@@ -10116,7 +10116,7 @@
         },
         {
           "name_en": "Bajura",
-          "name_ne": "",
+          "name_ne": "बाजुरा",
           "ocha_adm2_pcode": "NP0768",
           "palika_count": 9,
           "palikas": [
@@ -10250,7 +10250,7 @@
         },
         {
           "name_en": "Achham",
-          "name_ne": "",
+          "name_ne": "अछाम",
           "ocha_adm2_pcode": "NP0769",
           "palika_count": 10,
           "palikas": [
@@ -10398,7 +10398,7 @@
         },
         {
           "name_en": "Doti",
-          "name_ne": "",
+          "name_ne": "डोटी",
           "ocha_adm2_pcode": "NP0770",
           "palika_count": 9,
           "palikas": [
@@ -10532,7 +10532,7 @@
         },
         {
           "name_en": "Kailali",
-          "name_ne": "",
+          "name_ne": "कैलाली",
           "ocha_adm2_pcode": "NP0771",
           "palika_count": 13,
           "palikas": [
@@ -10722,7 +10722,7 @@
         },
         {
           "name_en": "Kanchanpur",
-          "name_ne": "",
+          "name_ne": "कञ्चनपुर",
           "ocha_adm2_pcode": "NP0772",
           "palika_count": 9,
           "palikas": [
@@ -10856,7 +10856,7 @@
         },
         {
           "name_en": "Dadeldhura",
-          "name_ne": "",
+          "name_ne": "डडेल्धुरा",
           "ocha_adm2_pcode": "NP0773",
           "palika_count": 7,
           "palikas": [
@@ -10962,7 +10962,7 @@
         },
         {
           "name_en": "Baitadi",
-          "name_ne": "",
+          "name_ne": "बैतडी",
           "ocha_adm2_pcode": "NP0774",
           "palika_count": 10,
           "palikas": [
@@ -11110,7 +11110,7 @@
         },
         {
           "name_en": "Darchula",
-          "name_ne": "",
+          "name_ne": "दार्चुला",
           "ocha_adm2_pcode": "NP0775",
           "palika_count": 9,
           "palikas": [
