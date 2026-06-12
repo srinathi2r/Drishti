@@ -1,4 +1,4 @@
-const SUBMISSION_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxfK7Ff9WQnwDuYkXi7v3hSqD49Zq9O8BN3rwj7CmcQxP8tnYXpzV1NrqjEuXeJWJRV/exec";
+const SUBMISSION_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxlLgm8v2GfCBe2i-PaKux7gPYSS6sx557JEguH2WGYTuCiSu4qGAgn5Py-IMvdx7Ke/exec";
 const HIERARCHY_URL = new URL("../data/nepal_admin_hierarchy.json", window.location.href).href;
 const SUBMIT_RESPONSE_TIMEOUT_MS = 45000;
 
