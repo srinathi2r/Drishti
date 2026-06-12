@@ -1,6 +1,5 @@
 const SUBMISSION_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxlLgm8v2GfCBe2i-PaKux7gPYSS6sx557JEguH2WGYTuCiSu4qGAgn5Py-IMvdx7Ke/exec";
 const HIERARCHY_URL = new URL("../data/nepal_admin_hierarchy.json", window.location.href).href;
-const SUBMIT_RESPONSE_TIMEOUT_MS = 45000;
 
 const form = document.querySelector("#iraForm");
 const provinceSelect = document.querySelector("#provinceSelect");
@@ -150,57 +149,13 @@ function buildPayload() {
 }
 
 async function submitPayload(payload) {
-  return new Promise((resolve, reject) => {
-    const frameName = `drishti_submit_${payload.client_submission_id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-    const frame = document.createElement("iframe");
-    const postForm = document.createElement("form");
-    const payloadInput = document.createElement("input");
-    const responseFormatInput = document.createElement("input");
-    const timer = window.setTimeout(() => {
-      cleanup();
-      reject(new Error("Submission confirmation timed out"));
-    }, SUBMIT_RESPONSE_TIMEOUT_MS);
-
-    function cleanup() {
-      window.clearTimeout(timer);
-      window.removeEventListener("message", handleMessage);
-      postForm.remove();
-      frame.remove();
-    }
-
-    function handleMessage(event) {
-      const data = event.data;
-      if (!data || data.source !== "disaster-submit" || data.client_submission_id !== payload.client_submission_id) return;
-      cleanup();
-      if (data.ok) {
-        resolve(data);
-      } else {
-        reject(new Error(data.error || "Submission failed"));
-      }
-    }
-
-    frame.name = frameName;
-    frame.title = "Submission transport";
-    frame.hidden = true;
-
-    postForm.method = "POST";
-    postForm.action = SUBMISSION_ENDPOINT_URL;
-    postForm.target = frameName;
-    postForm.hidden = true;
-
-    payloadInput.type = "hidden";
-    payloadInput.name = "payload";
-    payloadInput.value = JSON.stringify(payload);
-
-    responseFormatInput.type = "hidden";
-    responseFormatInput.name = "response_format";
-    responseFormatInput.value = "postMessage";
-
-    postForm.append(payloadInput, responseFormatInput);
-    window.addEventListener("message", handleMessage);
-    document.body.append(frame, postForm);
-    postForm.submit();
+  await fetch(SUBMISSION_ENDPOINT_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(payload),
   });
+  return { ok: true };
 }
 
 async function initialize() {
@@ -248,7 +203,7 @@ form.addEventListener("submit", async (event) => {
     resetSelect(palikaSelect, "पहिले जिल्ला छान्नुहोस् / Select district first", true);
     statusMessage.className = "status-message success";
     statusMessage.textContent =
-      "धन्यवाद! तपाईंको रिपोर्ट प्राप्त भयो। पुष्टिकरण इमेल पठाइएको छ। / Thank you! Your report has been received. A confirmation email has been sent.";
+      "तपाईंको रिपोर्ट पेश गरिएको छ। समस्या भएमा समन्वयकर्तासँग सम्पर्क गर्नुहोस्। / Your report has been sent. If you have concerns, contact your coordinator.";
   } catch (error) {
     statusMessage.className = "status-message error";
     statusMessage.textContent = `पेश हुन सकेन। कृपया फेरि प्रयास गर्नुहोस् वा समन्वयकर्तालाई सम्पर्क गर्नुहोस्। / Submission failed. Please retry or contact your coordinator. ${error.message}`;
