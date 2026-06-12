@@ -117,6 +117,14 @@ const DISTRICT_TABS = [
   { key: "salyan", districtEn: "Salyan", ne: "सल्यान", en: "Salyan" },
 ];
 
+const DISASTER_TYPE_HINTS = [
+  { key: "earthquake", ne: "भूकम्प", en: "Earthquake", tokens: ["earthquake", "quake", "eq", "भूकम्प"] },
+  { key: "flood", ne: "बाढी", en: "Flood", tokens: ["flood", "flooding", "बाढी"] },
+  { key: "landslide", ne: "पहिरो", en: "Landslide", tokens: ["landslide", "पहिरो"] },
+  { key: "fire", ne: "आगलागी", en: "Fire", tokens: ["fire", "आगलागी"] },
+  { key: "storm", ne: "हावाहुरी", en: "Storm", tokens: ["storm", "windstorm", "हावाहुरी"] },
+];
+
 const DETAIL_SECTIONS = [
   {
     ne: "१. प्रभावित जनसंख्या",
@@ -281,21 +289,6 @@ function Bi({ ne, en, className = "" }) {
   );
 }
 
-function splitTitleLines(text) {
-  const words = String(text || "").trim().split(/\s+/).filter(Boolean);
-  if (words.length <= 3) return [words.join(" ")];
-  const splitAt = Math.ceil(words.length / 2);
-  return [words.slice(0, splitAt).join(" "), words.slice(splitAt).join(" ")];
-}
-
-function TitleLines({ text }) {
-  return splitTitleLines(text).map((line) => (
-    <span className="title-line" key={line}>
-      {line}
-    </span>
-  ));
-}
-
 function truthy(value) {
   return ["true", "yes", "1", "हो"].includes(String(value).trim().toLowerCase());
 }
@@ -328,6 +321,93 @@ function formatDate(value) {
     timeZone: "Asia/Kathmandu",
   }).format(date);
   return `${formatted} NPT`;
+}
+
+function eventMonthLabel(date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    timeZone: "Asia/Kathmandu",
+    year: "numeric",
+  }).format(date);
+}
+
+function eventMonthRangeLabel(rows) {
+  const dates = rows
+    .map((row) => new Date(row.submitted_at))
+    .filter((date) => !Number.isNaN(date.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  if (!dates.length) return "";
+
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+  if (first.getFullYear() === last.getFullYear() && first.getMonth() === last.getMonth()) {
+    return eventMonthLabel(first);
+  }
+
+  return `${eventMonthLabel(first)} - ${eventMonthLabel(last)}`;
+}
+
+function hintMatchesToken(text, token) {
+  const normalized = String(text || "").normalize("NFKC").toLowerCase();
+  const normalizedToken = String(token || "").normalize("NFKC").toLowerCase();
+  if (!normalizedToken) return false;
+  if (/^[a-z0-9]+$/.test(normalizedToken)) {
+    return new RegExp(`(^|[^a-z0-9])${normalizedToken}([^a-z0-9]|$)`).test(normalized);
+  }
+  return normalized.includes(normalizedToken);
+}
+
+function disasterTypeFromRow(row) {
+  const explicitNe = row.disaster_type_ne || row.hazard_type_ne || row.incident_type_ne || row.event_type_ne || "";
+  const explicitEn = row.disaster_type_en || row.hazard_type_en || row.incident_type_en || row.event_type_en || "";
+  const explicitLabel = `${explicitNe} ${explicitEn}`.trim();
+  const inferredLabel = [row.event_id].filter(Boolean).join(" ");
+  const label = explicitLabel || inferredLabel;
+  const knownType = DISASTER_TYPE_HINTS.find((type) =>
+    type.tokens.some((token) => hintMatchesToken(label, token)),
+  );
+
+  if (knownType) return knownType;
+  if (explicitNe || explicitEn) {
+    const fallback = explicitEn || explicitNe;
+    return {
+      key: fallback.normalize("NFKC").toLowerCase(),
+      ne: explicitNe || fallback,
+      en: explicitEn || fallback,
+    };
+  }
+  return null;
+}
+
+function inferredEventLabel(rows, source) {
+  if (source !== "live" || !rows.length) {
+    return { ne: "कुनै सक्रिय घटना छैन", en: "No active event", placeholder: true };
+  }
+
+  const dateRange = eventMonthRangeLabel(rows);
+  if (!dateRange) {
+    return { ne: "कुनै सक्रिय घटना छैन", en: "No active event", placeholder: true };
+  }
+
+  const counts = new Map();
+  rows.forEach((row) => {
+    const disasterType = disasterTypeFromRow(row);
+    if (!disasterType) return;
+    const current = counts.get(disasterType.key) || { disasterType, count: 0 };
+    counts.set(disasterType.key, { ...current, count: current.count + 1 });
+  });
+
+  const mostFrequent = Array.from(counts.values()).sort((a, b) => b.count - a.count)[0]?.disasterType || {
+    ne: "घटना",
+    en: "Event",
+  };
+
+  return {
+    ne: `${mostFrequent.ne} घटना - ${dateRange}`,
+    en: `${mostFrequent.en} Event - ${dateRange}`,
+    placeholder: false,
+  };
 }
 
 function csvEscape(value) {
@@ -507,7 +587,14 @@ function ExportModal({ onCancel, onConfirm }) {
   );
 }
 
-function printableSummaryHtml({ event, summary, rows, expectedCount, lastUpdated }) {
+function printableSummaryHtml({
+  event,
+  eventLabel = { ne: "कुनै सक्रिय घटना छैन", en: "No active event" },
+  summary,
+  rows,
+  expectedCount,
+  lastUpdated,
+}) {
   const summaryLines = SUMMARY_CARDS.map((card) => [
     `${card.ne} / ${card.en}`,
     formatNumber(summary[card.key]),
@@ -546,7 +633,7 @@ function printableSummaryHtml({ event, summary, rows, expectedCount, lastUpdated
   <h1>विपद् स्थिति ड्यासबोर्ड / Disaster Situation Dashboard</h1>
   <p>संघीय मामिला तथा सामान्य प्रशासन मन्त्रालय / Ministry of Federal Affairs and General Administration</p>
   <div class="meta">
-    <p><strong>घटना / Event:</strong> ${event.event_name_ne} / ${event.event_name_en}</p>
+    <p><strong>घटना / Event:</strong> ${eventLabel.ne} / ${eventLabel.en}</p>
     <p><strong>जिल्ला / Districts:</strong> ${event.affected_districts_ne} / ${event.affected_districts_en}</p>
     <p><strong>रिपोर्टिङ / Reporting:</strong> ${rows.length} / ${expectedCount}</p>
     <p><strong>अन्तिम अद्यावधिक / Last updated:</strong> ${lastUpdated}</p>
@@ -642,6 +729,10 @@ function App() {
 
   const latestByPalika = useMemo(() => latestSubmissions(scopedSubmissions), [scopedSubmissions]);
   const submittedRows = useMemo(() => Array.from(latestByPalika.values()), [latestByPalika]);
+  const eventLabel = useMemo(
+    () => inferredEventLabel(submittedRows, submissionSource),
+    [submittedRows, submissionSource],
+  );
   const activeDistrict = useMemo(
     () => DISTRICT_TABS.find((tab) => tab.key === selectedDistrict) || DISTRICT_TABS[0],
     [selectedDistrict],
@@ -768,7 +859,7 @@ function App() {
     const exportTimestamp = formatDate(new Date().toISOString());
     const summaryRows = [
       ["विपद् स्थिति ड्यासबोर्ड निर्यात / Disaster Situation Dashboard Export", ""],
-      ["घटना / Event", `${activeEvent.event_name_ne} / ${activeEvent.event_name_en}`],
+      ["घटना / Event", `${eventLabel.ne} / ${eventLabel.en}`],
       ["जिल्ला / Districts", `${activeEvent.affected_districts_ne} / ${activeEvent.affected_districts_en}`],
       ["कुल अपेक्षित पालिका / Total expected palikas", scopedExpected.length],
       ["रिपोर्ट गरेका पालिका / Reporting palikas", exportSubmittedRows.length],
@@ -823,15 +914,14 @@ function App() {
     <main className="app-shell">
       <header className="event-header">
         <div>
-          <p className="eyebrow">विपद् स्थिति ड्यासबोर्ड / Disaster Situation Dashboard</p>
           <h1>
-            <span lang="ne">
-              <TitleLines text={activeEvent.event_name_ne || "घटना लोड हुँदै"} />
-            </span>
-            <span>
-              {activeEvent.event_name_en || "Loading event"}
-            </span>
+            <span lang="ne">विपद् स्थिति ड्यासबोर्ड</span>
+            <span>Disaster Situation Dashboard</span>
           </h1>
+          <p className={`event-subtitle${eventLabel.placeholder ? " placeholder" : ""}`}>
+            <span lang="ne">{eventLabel.ne}</span>
+            <span>{eventLabel.en}</span>
+          </p>
           <div className="event-meta">
             <span className="district-pill">
               <span className="meta-line" lang="ne">{activeEvent.affected_districts_ne || "—"}</span>

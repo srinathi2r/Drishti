@@ -88,9 +88,29 @@ h1 span {
   white-space: normal;
 }
 
-.title-line,
 .meta-line {
   display: block;
+}
+
+.event-subtitle {
+  display: grid;
+  gap: 2px;
+  margin: 10px 0 0;
+  color: #31433c;
+  font-size: 0.98rem;
+  font-weight: 750;
+  line-height: 1.28;
+}
+
+.event-subtitle span:last-child {
+  color: #5d6b65;
+  font-size: 0.9em;
+  font-weight: 650;
+}
+
+.event-subtitle.placeholder {
+  color: #64746d;
+  font-weight: 650;
 }
 
 .meta-english {

@@ -82,14 +82,7 @@ Native Google Forms cannot show a custom pre-submit summary or block duplicates 
 
 ## Mock event
 
-The bundled mock event is:
-
-```text
-कर्णाली भूकम्प प्रारम्भिक मूल्यांकन अभ्यास २०८३
-Karnali Earthquake IRA Drill 2083
-```
-
-It scopes 25 expected palikas across Dailekh, Jajarkot, and Salyan in Karnali Province, with 20 submitted mock IRA rows and 5 outstanding palikas.
+The bundled mock event is a neutral IRA drill scoped to 25 expected palikas across Dailekh, Jajarkot, and Salyan in Karnali Province, with 20 submitted mock IRA rows and 5 outstanding palikas.
 
 Regenerate data:
 

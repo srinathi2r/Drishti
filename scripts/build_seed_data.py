@@ -13,8 +13,8 @@ DATA_DIR = ROOT / "public" / "data"
 MASTER = DATA_DIR / "palika_master.csv"
 
 EVENT_ID = "karnali-eq-2083-drill"
-EVENT_NAME_NE = "कर्णाली भूकम्प प्रारम्भिक मूल्यांकन अभ्यास २०८३"
-EVENT_NAME_EN = "Karnali Earthquake IRA Drill 2083"
+EVENT_NAME_NE = "प्रारम्भिक द्रुत मूल्यांकन अभ्यास २०८३"
+EVENT_NAME_EN = "Initial Rapid Assessment Drill 2083"
 KARNALI_DISTRICTS = ["Dailekh", "Jajarkot", "Salyan"]
 
 SUBMISSION_COLUMNS = [
@@ -80,7 +80,7 @@ def read_master() -> list[dict[str, str]]:
 def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     print(f"Wrote {len(rows)} rows to {path}")

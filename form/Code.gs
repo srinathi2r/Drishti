@@ -397,7 +397,7 @@ function buildForm_(form, spreadsheet) {
     .addListItem()
     .setTitle('घटनाको नाम / Event name')
     .setChoiceValues([`${activeEvent.event_name_ne} / ${activeEvent.event_name_en}`])
-    .setRequired(true);
+    .setRequired(false);
   form
     .addListItem()
     .setTitle('पालिकाको नाम / Palika name')
@@ -520,8 +520,8 @@ function seedDefaultEvent_(spreadsheet) {
     [
       'karnali-eq-2083-drill',
       'TRUE',
-      'कर्णाली भूकम्प प्रारम्भिक मूल्यांकन अभ्यास २०८३',
-      'Karnali Earthquake IRA Drill 2083',
+      'प्रारम्भिक द्रुत मूल्यांकन अभ्यास २०८३',
+      'Initial Rapid Assessment Drill 2083',
       'कर्णाली',
       'Karnali',
       'जाजरकोट; दैलेख; सल्यान',
