@@ -1,7 +1,7 @@
 const SUBMISSION_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxfK7Ff9WQnwDuYkXi7v3hSqD49Zq9O8BN3rwj7CmcQxP8tnYXpzV1NrqjEuXeJWJRV/exec";
 const HIERARCHY_URL = new URL("../data/nepal_admin_hierarchy.json", window.location.href).href;
-const VERIFY_INTERVAL_MS = 2000;
-const VERIFY_TIMEOUT_MS = 15000;
+const VERIFY_INTERVAL_MS = 3000;
+const VERIFY_TIMEOUT_MS = 45000;
 const JSONP_REQUEST_TIMEOUT_MS = 5000;
 
 const form = document.querySelector("#iraForm");
@@ -215,6 +215,8 @@ async function waitForSubmissionConfirmation(submissionId) {
   while (Date.now() < deadline) {
     try {
       const timeoutMs = Math.min(JSONP_REQUEST_TIMEOUT_MS, deadline - Date.now());
+      // Await each JSONP status request before sleeping, so slow Apps Script
+      // redirects cannot create overlapping verification requests.
       if (timeoutMs > 0 && (await verifySubmissionStatus(submissionId, timeoutMs))) return true;
     } catch {
       // Keep polling until the overall verification window expires.
