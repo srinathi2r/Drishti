@@ -218,7 +218,7 @@ h1 span {
 
 .district-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
   margin: 16px 0 0;
   padding: 6px;
@@ -226,10 +226,15 @@ h1 span {
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 10px 24px rgba(17, 35, 29, 0.04);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent);
 }
 
 .district-tab {
   display: inline-flex;
+  flex: 0 0 auto;
   min-width: 132px;
   min-height: 44px;
   align-items: center;
@@ -385,6 +390,19 @@ h1 span {
   margin: -4px 0 12px;
   color: #53635c;
   font-weight: 700;
+}
+
+.scope-badge {
+  display: inline-flex;
+  margin-top: 4px;
+  width: fit-content;
+  border: 1px solid #f2c078;
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: #8a4b00;
+  background: #fff7e6;
+  font-size: 0.74rem;
+  font-weight: 850;
 }
 
 .table-wrap {
@@ -747,13 +765,8 @@ tr.selected-row td {
     width: 100%;
   }
 
-  .district-tabs {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .district-tab {
-    min-width: 0;
+    min-width: 132px;
   }
 
   .summary-grid,

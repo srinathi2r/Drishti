@@ -110,13 +110,6 @@ const SUBMISSION_TYPES = {
   Voice: { ne: "फोन कल", en: "Voice call" },
 };
 
-const DISTRICT_TABS = [
-  { key: "all", districtEn: "", ne: "सबै", en: "All" },
-  { key: "dailekh", districtEn: "Dailekh", ne: "दैलेख", en: "Dailekh" },
-  { key: "jajarkot", districtEn: "Jajarkot", ne: "जाजरकोट", en: "Jajarkot" },
-  { key: "salyan", districtEn: "Salyan", ne: "सल्यान", en: "Salyan" },
-];
-
 const DISASTER_TYPE_HINTS = [
   { key: "earthquake", ne: "भूकम्प", en: "Earthquake", tokens: ["earthquake", "quake", "eq", "भूकम्प"] },
   { key: "flood", ne: "बाढी", en: "Flood", tokens: ["flood", "flooding", "बाढी"] },
@@ -300,6 +293,84 @@ function toNumber(value) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(value);
+}
+
+function districtTabKey(value) {
+  return (
+    String(value || "unknown")
+      .normalize("NFKC")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "unknown"
+  );
+}
+
+function buildDistrictTabs(rows) {
+  const districts = new Map();
+
+  rows.forEach((row) => {
+    const districtEn = String(row.district_en || "").trim();
+    const districtNe = String(row.district_ne || "").trim();
+    const label = districtEn || districtNe;
+    if (!label) return;
+
+    const key = districtTabKey(label);
+    if (!districts.has(key)) {
+      districts.set(key, {
+        key,
+        districtEn,
+        ne: districtNe || label,
+        en: districtEn || label,
+      });
+    }
+  });
+
+  return [
+    { key: "all", districtEn: "", ne: "सबै", en: "All" },
+    ...Array.from(districts.values()).sort((a, b) => a.en.localeCompare(b.en)),
+  ];
+}
+
+function districtSummaryLabel(districtTabs) {
+  const districts = districtTabs.filter((tab) => tab.districtEn);
+  if (!districts.length) return { ne: "—", en: "—" };
+  if (districts.length > 6) {
+    const count = formatNumber(districts.length);
+    return { ne: `${count} जिल्ला`, en: `${count} districts` };
+  }
+  return {
+    ne: districts.map((district) => district.ne).join("; "),
+    en: districts.map((district) => district.en).join("; "),
+  };
+}
+
+function districtMatches(row, districtEn) {
+  return !districtEn || row.district_en === districtEn;
+}
+
+function buildTrackerRows(expectedRows, submittedRows, latestByPalika) {
+  const expectedIds = new Set(expectedRows.map((palika) => palika.palika_id));
+  const expectedTrackerRows = expectedRows.map((palika) => ({
+    ...palika,
+    expected: true,
+    submission: latestByPalika.get(palika.palika_id),
+  }));
+  const additionalSubmittedRows = submittedRows
+    .filter((submission) => !expectedIds.has(submission.palika_id))
+    .map((submission) => ({
+      event_id: submission.event_id,
+      palika_id: submission.palika_id,
+      palika_name_ne: submission.palika_name_ne,
+      palika_name_en: submission.palika_name_en,
+      district_ne: submission.district_ne,
+      district_en: submission.district_en,
+      province_ne: submission.province_ne,
+      province_en: submission.province_en,
+      expected: false,
+      submission,
+    }));
+
+  return [...expectedTrackerRows, ...additionalSubmittedRows];
 }
 
 function formatDetailValue(row, field) {
@@ -588,8 +659,8 @@ function ExportModal({ onCancel, onConfirm }) {
 }
 
 function printableSummaryHtml({
-  event,
   eventLabel = { ne: "कुनै सक्रिय घटना छैन", en: "No active event" },
+  districtSummary = { ne: "—", en: "—" },
   summary,
   rows,
   expectedCount,
@@ -634,7 +705,7 @@ function printableSummaryHtml({
   <p>संघीय मामिला तथा सामान्य प्रशासन मन्त्रालय / Ministry of Federal Affairs and General Administration</p>
   <div class="meta">
     <p><strong>घटना / Event:</strong> ${eventLabel.ne} / ${eventLabel.en}</p>
-    <p><strong>जिल्ला / Districts:</strong> ${event.affected_districts_ne} / ${event.affected_districts_en}</p>
+    <p><strong>जिल्ला / Districts:</strong> ${districtSummary.ne} / ${districtSummary.en}</p>
     <p><strong>रिपोर्टिङ / Reporting:</strong> ${rows.length} / ${expectedCount}</p>
     <p><strong>अन्तिम अद्यावधिक / Last updated:</strong> ${lastUpdated}</p>
   </div>
@@ -733,32 +804,37 @@ function App() {
     () => inferredEventLabel(submittedRows, submissionSource),
     [submittedRows, submissionSource],
   );
+  const districtTabs = useMemo(() => buildDistrictTabs(submittedRows), [submittedRows]);
+  // TODO: If district count regularly exceeds ~12, replace scrolling tabs with All + searchable district dropdown.
+  const districtSummary = useMemo(() => districtSummaryLabel(districtTabs), [districtTabs]);
   const activeDistrict = useMemo(
-    () => DISTRICT_TABS.find((tab) => tab.key === selectedDistrict) || DISTRICT_TABS[0],
-    [selectedDistrict],
+    () => districtTabs.find((tab) => tab.key === selectedDistrict) || districtTabs[0],
+    [districtTabs, selectedDistrict],
   );
+  useEffect(() => {
+    if (!districtTabs.some((tab) => tab.key === selectedDistrict)) {
+      setSelectedDistrict("all");
+      setSelectedPalikaId("");
+    }
+  }, [districtTabs, selectedDistrict]);
   const filteredExpected = useMemo(
     () =>
       activeDistrict.districtEn
-        ? scopedExpected.filter((row) => row.district_en === activeDistrict.districtEn)
+        ? scopedExpected.filter((row) => districtMatches(row, activeDistrict.districtEn))
         : scopedExpected,
     [activeDistrict.districtEn, scopedExpected],
   );
   const filteredSubmittedRows = useMemo(
     () =>
       activeDistrict.districtEn
-        ? submittedRows.filter((row) => row.district_en === activeDistrict.districtEn)
+        ? submittedRows.filter((row) => districtMatches(row, activeDistrict.districtEn))
         : submittedRows,
     [activeDistrict.districtEn, submittedRows],
   );
   const summary = useMemo(() => buildSummary(filteredSubmittedRows), [filteredSubmittedRows]);
   const exportTrackerRows = useMemo(
-    () =>
-      scopedExpected.map((palika) => ({
-        ...palika,
-        submission: latestByPalika.get(palika.palika_id),
-      })),
-    [scopedExpected, latestByPalika],
+    () => buildTrackerRows(scopedExpected, submittedRows, latestByPalika),
+    [scopedExpected, submittedRows, latestByPalika],
   );
   const exportSubmittedRows = useMemo(
     () => exportTrackerRows.map((row) => row.submission).filter(Boolean),
@@ -767,9 +843,10 @@ function App() {
   const allSummary = useMemo(() => buildSummary(exportSubmittedRows), [exportSubmittedRows]);
   const districtBreakdowns = useMemo(
     () =>
-      DISTRICT_TABS.filter((tab) => tab.districtEn).map((tab) => {
-        const expectedRows = exportTrackerRows.filter((row) => row.district_en === tab.districtEn);
-        const districtSubmittedRows = expectedRows.map((row) => row.submission).filter(Boolean);
+      districtTabs.filter((tab) => tab.districtEn).map((tab) => {
+        const districtRows = exportTrackerRows.filter((row) => districtMatches(row, tab.districtEn));
+        const expectedRows = districtRows.filter((row) => row.expected);
+        const districtSubmittedRows = districtRows.map((row) => row.submission).filter(Boolean);
         return {
           ...tab,
           expectedCount: expectedRows.length,
@@ -777,7 +854,7 @@ function App() {
           summary: buildSummary(districtSubmittedRows),
         };
       }),
-    [exportTrackerRows],
+    [districtTabs, exportTrackerRows],
   );
 
   const lastUpdated = useMemo(() => {
@@ -830,12 +907,16 @@ function App() {
   );
 
   const trackerRows = useMemo(
-    () =>
-      filteredExpected.map((palika) => ({
-        ...palika,
-        submission: latestByPalika.get(palika.palika_id),
-      })),
-    [filteredExpected, latestByPalika],
+    () => buildTrackerRows(filteredExpected, filteredSubmittedRows, latestByPalika),
+    [filteredExpected, filteredSubmittedRows, latestByPalika],
+  );
+  const filteredExpectedSubmittedCount = useMemo(
+    () => trackerRows.filter((row) => row.expected && row.submission).length,
+    [trackerRows],
+  );
+  const filteredAdditionalSubmittedCount = useMemo(
+    () => trackerRows.filter((row) => row.expected === false && row.submission).length,
+    [trackerRows],
   );
   const selectedSubmission = selectedPalikaId ? latestByPalika.get(selectedPalikaId) : null;
 
@@ -860,7 +941,7 @@ function App() {
     const summaryRows = [
       ["विपद् स्थिति ड्यासबोर्ड निर्यात / Disaster Situation Dashboard Export", ""],
       ["घटना / Event", `${eventLabel.ne} / ${eventLabel.en}`],
-      ["जिल्ला / Districts", `${activeEvent.affected_districts_ne} / ${activeEvent.affected_districts_en}`],
+      ["जिल्ला / Districts", `${districtSummary.ne} / ${districtSummary.en}`],
       ["कुल अपेक्षित पालिका / Total expected palikas", scopedExpected.length],
       ["रिपोर्ट गरेका पालिका / Reporting palikas", exportSubmittedRows.length],
       ["निर्यात समय / Export timestamp", exportTimestamp],
@@ -899,7 +980,7 @@ function App() {
         };
         return [
           submitted ? "प्राप्त / Submitted" : "बाँकी / Outstanding",
-          `${row.palika_name_ne} / ${row.palika_name_en}`,
+          `${row.palika_name_ne} / ${row.palika_name_en}${row.expected === false ? " (scope बाहिर / outside scope)" : ""}`,
           `${row.district_ne} / ${row.district_en}`,
           submitted ? formatDate(row.submission.submitted_at) : "—",
           submitted ? `${type.ne} / ${type.en}` : "—",
@@ -924,8 +1005,8 @@ function App() {
           </p>
           <div className="event-meta">
             <span className="district-pill">
-              <span className="meta-line" lang="ne">{activeEvent.affected_districts_ne || "—"}</span>
-              <span className="meta-line meta-english">{activeEvent.affected_districts_en || "—"}</span>
+              <span className="meta-line" lang="ne">{districtSummary.ne}</span>
+              <span className="meta-line meta-english">{districtSummary.en}</span>
             </span>
             <span>
               {formatNumber(scopedExpected.length)} <span lang="ne">अपेक्षित पालिका</span> / expected palikas
@@ -1000,7 +1081,7 @@ function App() {
       ) : null}
 
       <nav className="district-tabs" aria-label="जिल्ला फिल्टर / District filter">
-        {DISTRICT_TABS.map((tab) => (
+        {districtTabs.map((tab) => (
           <button
             className={`district-tab ${selectedDistrict === tab.key ? "active" : ""}`}
             type="button"
@@ -1038,13 +1119,24 @@ function App() {
             en="Submission Tracker"
             right={
               <span className="count-pill">
-                {filteredSubmittedRows.length} / {filteredExpected.length}
+                {filteredExpectedSubmittedCount} / {filteredExpected.length}
+                {filteredAdditionalSubmittedCount ? ` +${filteredAdditionalSubmittedCount}` : ""}
               </span>
             }
           />
           <p className="tracker-status">
-            <span lang="ne">{filteredSubmittedRows.length} मध्ये {filteredExpected.length} अपेक्षित पालिकाले रिपोर्ट गरेका छन्</span>
-            <span>{filteredSubmittedRows.length} of {filteredExpected.length} expected palikas reported</span>
+            <span lang="ne">
+              {filteredExpectedSubmittedCount} मध्ये {filteredExpected.length} अपेक्षित पालिकाले रिपोर्ट गरेका छन्
+              {filteredAdditionalSubmittedCount
+                ? `; ${filteredAdditionalSubmittedCount} अतिरिक्त पेशी scope बाहिर छन्`
+                : ""}
+            </span>
+            <span>
+              {filteredExpectedSubmittedCount} of {filteredExpected.length} expected palikas reported
+              {filteredAdditionalSubmittedCount
+                ? `; ${filteredAdditionalSubmittedCount} additional submission${filteredAdditionalSubmittedCount === 1 ? "" : "s"} outside scope`
+                : ""}
+            </span>
           </p>
           <div className="table-wrap">
             <table>
@@ -1097,6 +1189,11 @@ function App() {
                       <td>
                         <strong lang="ne">{palikaNameNe}</strong>
                         <span>{palikaNameEn}</span>
+                        {row.expected === false ? (
+                          <span className="scope-badge">
+                            <Bi ne="scope बाहिर" en="outside scope" />
+                          </span>
+                        ) : null}
                       </td>
                       <td>
                         {districtNe} / {districtEn}
