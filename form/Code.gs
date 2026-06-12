@@ -413,6 +413,9 @@ function sendSubmissionConfirmationEmail_(row) {
   const reference = row.client_submission_id || '—';
   const locationNe = `${row.palika_name_ne || '—'}, ${row.district_ne || '—'}, ${row.province_ne || '—'}`;
   const locationEn = `${row.palika_name_en || '—'}, ${row.district_en || '—'}, ${row.province_en || '—'}`;
+  const detailLines = submissionEmailDetailLines_(row);
+  const nepaliDetails = detailLines.length ? ['विवरण / Details'].concat(detailLines, ['']) : [];
+  const englishDetails = detailLines.length ? ['Details'].concat(detailLines, ['']) : [];
   const subject = 'रिपोर्ट प्राप्त भयो / Report received';
   const body = [
     'नमस्कार,',
@@ -420,6 +423,8 @@ function sendSubmissionConfirmationEmail_(row) {
     'तपाईंको प्रारम्भिक द्रुत मूल्यांकन रिपोर्ट प्राप्त भयो।',
     `स्थान: ${locationNe}`,
     `सन्दर्भ नम्बर: ${reference}`,
+    '',
+    ...nepaliDetails,
     'यो स्वचालित सन्देश हो।',
     '',
     'Hello,',
@@ -427,6 +432,8 @@ function sendSubmissionConfirmationEmail_(row) {
     'Your Initial Rapid Assessment report has been received.',
     `Location: ${locationEn}`,
     `Reference number: ${reference}`,
+    '',
+    ...englishDetails,
     'This is an automated message.',
   ].join('\n');
 
@@ -437,6 +444,35 @@ function sendSubmissionConfirmationEmail_(row) {
     name: 'Disaster Situation Dashboard',
   });
   return true;
+}
+
+function submissionEmailDetailLines_(row) {
+  const skippedKeys = {
+    event_name: true,
+    palika: true,
+    operator_name: true,
+    submission_type: true,
+  };
+
+  return FORM_FIELD_MAP.reduce((lines, field) => {
+    const key = field[0];
+    const label = field[1];
+    const type = field[2];
+    if (skippedKeys[key] || !Object.prototype.hasOwnProperty.call(row, key)) return lines;
+
+    const value = row[key];
+    if (value === '' || value === null || value === undefined) return lines;
+
+    lines.push(`${label}: ${emailDetailValue_(value, type)}`);
+    return lines;
+  }, []);
+}
+
+function emailDetailValue_(value, type) {
+  if (type === 'yes_no') {
+    return value === true || String(value).toLowerCase() === 'true' ? 'हो / Yes' : 'होइन / No';
+  }
+  return value;
 }
 
 function buildSubmissionRow_(spreadsheet, response) {
