@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="ne">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IRA Submission Form</title>
+    <link rel="stylesheet" href="./submit.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="form-header">
+        <div>
+          <h1>
+            <span lang="ne">प्रारम्भिक द्रुत मूल्यांकन पेशी फाराम</span>
+            <span>Initial Rapid Assessment Submission Form</span>
+          </h1>
+          <p>
+            <span lang="ne">पालिका तहबाट ७२ घण्टाभित्रको प्रारम्भिक विवरण पेश गर्नुहोस्।</span>
+            <span>Submit palika-level initial information within the 72-hour window.</span>
+          </p>
+        </div>
+        <a class="dashboard-link" href="../">
+          <span lang="ne">ड्यासबोर्ड</span>
+          <span>Dashboard</span>
+        </a>
+      </header>
+
+      <form id="iraForm" class="ira-form" novalidate>
+        <section class="form-section">
+          <div class="section-heading">
+            <h2>
+              <span lang="ne">स्थान</span>
+              <span>Location</span>
+            </h2>
+          </div>
+          <div class="field-grid three">
+            <label class="field">
+              <span lang="ne">प्रदेश *</span>
+              <span>Province *</span>
+              <select id="provinceSelect" required>
+                <option value="">छान्नुहोस् / Choose</option>
+              </select>
+            </label>
+            <label class="field">
+              <span lang="ne">जिल्ला *</span>
+              <span>District *</span>
+              <select id="districtSelect" required disabled>
+                <option value="">पहिले प्रदेश छान्नुहोस् / Select province first</option>
+              </select>
+            </label>
+            <label class="field">
+              <span lang="ne">पालिका *</span>
+              <span>Palika *</span>
+              <select id="palikaSelect" required disabled>
+                <option value="">पहिले जिल्ला छान्नुहोस् / Select district first</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <h2>
+              <span lang="ne">पहिचान</span>
+              <span>Identification</span>
+            </h2>
+          </div>
+          <div class="field-grid two">
+            <label class="field">
+              <span lang="ne">सञ्चालकको नाम *</span>
+              <span>Operator name *</span>
+              <input data-field="operator_name" type="text" required autocomplete="name" />
+            </label>
+            <label class="field">
+              <span lang="ne">पेश गर्ने तरिका *</span>
+              <span>Submission type *</span>
+              <select data-field="submission_type" required>
+                <option value="">छान्नुहोस् / Choose</option>
+                <option value="Direct">सिधा / Direct</option>
+                <option value="Photo">कागजको फारामको फोटो / Photo of paper form</option>
+                <option value="Voice">फोन कल / Voice call</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <h2>
+              <span lang="ne">१. प्रभावित जनसंख्या</span>
+              <span>Affected Population</span>
+            </h2>
+          </div>
+          <div class="field-grid">
+            <label class="field"><span lang="ne">मृत्यु *</span><span>Deaths *</span><input data-field="deaths" type="number" min="0" step="1" required /></label>
+            <label class="field"><span lang="ne">बेपत्ता *</span><span>Missing *</span><input data-field="missing" type="number" min="0" step="1" required /></label>
+            <label class="field"><span lang="ne">घाइते *</span><span>Injured *</span><input data-field="injured" type="number" min="0" step="1" required /></label>
+            <label class="field"><span lang="ne">विस्थापित घरधुरी *</span><span>Displaced households *</span><input data-field="displaced_households" type="number" min="0" step="1" required /></label>
+            <label class="field"><span lang="ne">कुल प्रभावित जनसंख्या</span><span>Total affected population</span><input data-field="total_affected_population" type="number" min="0" step="1" /></label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <h2>
+              <span lang="ne">२. खोज तथा उद्धार</span>
+              <span>Search and Rescue</span>
+            </h2>
+          </div>
+          <div class="field-grid">
+            <label class="field"><span lang="ne">उद्धार कार्य भइरहेको वडा संख्या</span><span>Wards with rescue ongoing</span><input data-field="rescue_ongoing_wards" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">उद्धार कार्य सकिएको वडा संख्या</span><span>Wards with rescue completed</span><input data-field="rescue_completed_wards" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">उद्धार संख्या</span><span>Total rescued</span><input data-field="total_rescued" type="number" min="0" step="1" /></label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <h2>
+              <span lang="ne">३. अस्थायी आश्रय</span>
+              <span>Temporary Shelter</span>
+            </h2>
+          </div>
+          <div class="field-grid">
+            <label class="field"><span lang="ne">विद्यालयमा आश्रित घरधुरी</span><span>Households in schools</span><input data-field="shelter_households_schools" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">सार्वजनिक भवनमा</span><span>Households in public buildings</span><input data-field="shelter_households_public_buildings" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">आफन्त/छिमेकीमा</span><span>Households with relatives</span><input data-field="shelter_households_relatives" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">खुला क्षेत्रमा</span><span>Households in open areas</span><input data-field="shelter_households_open_areas" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">तत्काल अस्थायी आवासको आवश्यकता</span><span>Immediate shelter need</span><input data-field="immediate_shelter_need_households" type="number" min="0" step="1" /></label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <h2>
+              <span lang="ne">५. संचार तथा विद्युत</span>
+              <span>Communications and Electricity</span>
+            </h2>
+          </div>
+          <div class="field-grid two">
+            <label class="field"><span lang="ne">संचार सेवा अवरुद्ध</span><span>Communications disrupted</span><select data-field="communications_disrupted"><option value="">छैन / Blank</option><option value="true">हो / Yes</option><option value="false">होइन / No</option></select></label>
+            <label class="field"><span lang="ne">विद्युत सेवा अवरुद्ध</span><span>Electricity disrupted</span><select data-field="electricity_disrupted"><option value="">छैन / Blank</option><option value="true">हो / Yes</option><option value="false">होइन / No</option></select></label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <h2>
+              <span lang="ne">९. खानेपानीको आपूर्ति</span>
+              <span>Water Supply</span>
+            </h2>
+          </div>
+          <div class="field-grid two">
+            <label class="field"><span lang="ne">खानेपानी आपूर्ति अवरुद्ध</span><span>Water supply disrupted</span><select data-field="water_supply_disrupted"><option value="">छैन / Blank</option><option value="true">हो / Yes</option><option value="false">होइन / No</option></select></label>
+            <label class="field"><span lang="ne">अवरुद्ध भएको घरधुरी</span><span>Households affected by water disruption</span><input data-field="water_disruption_households" type="number" min="0" step="1" /></label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <h2>
+              <span lang="ne">११. भौतिक संरचना</span>
+              <span>Physical Structures</span>
+            </h2>
+          </div>
+          <div class="field-grid">
+            <label class="field"><span lang="ne">निजी घर पूर्ण क्षति *</span><span>Private houses fully damaged *</span><input data-field="private_houses_fully_damaged" type="number" min="0" step="1" required /></label>
+            <label class="field"><span lang="ne">निजी घर आंशिक क्षति</span><span>Private houses partially damaged</span><input data-field="private_houses_partially_damaged" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">सरकारी कार्यालय पूर्ण क्षति</span><span>Government buildings fully damaged</span><input data-field="government_buildings_fully_damaged" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">सरकारी कार्यालय आंशिक क्षति</span><span>Government buildings partially damaged</span><input data-field="government_buildings_partially_damaged" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">सार्वजनिक भवन पूर्ण क्षति</span><span>Public buildings fully damaged</span><input data-field="public_buildings_fully_damaged" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">सार्वजनिक भवन आंशिक क्षति</span><span>Public buildings partially damaged</span><input data-field="public_buildings_partially_damaged" type="number" min="0" step="1" /></label>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <div class="section-heading">
+            <h2>
+              <span lang="ne">१४. तत्काल आवश्यकता</span>
+              <span>Immediate Needs</span>
+            </h2>
+          </div>
+          <div class="field-grid">
+            <label class="field"><span lang="ne">टेन्ट संख्या</span><span>Tents needed</span><input data-field="tents_needed" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">त्रिपाल</span><span>Tarpaulins needed</span><input data-field="tarpaulins_needed" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">दाल, चामल, घिउ, तेल</span><span>Food packages needed</span><input data-field="food_packages_needed" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">कम्बल थान</span><span>Blankets needed</span><input data-field="blankets_needed" type="number" min="0" step="1" /></label>
+            <label class="field"><span lang="ne">पिउने पानी</span><span>Drinking water needed</span><input data-field="drinking_water_people" type="number" min="0" step="1" /></label>
+          </div>
+        </section>
+
+        <div class="form-actions">
+          <p id="formStatus" class="status-message" role="status"></p>
+          <button id="submitButton" class="submit-button" type="submit" disabled>
+            <span lang="ne">पेश गर्नुहोस्</span>
+            <span>Submit</span>
+          </button>
+        </div>
+      </form>
+    </main>
+    <script src="./submit.js"></script>
+  </body>
+</html>

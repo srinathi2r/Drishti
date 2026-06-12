@@ -171,6 +171,13 @@ const SUBMISSION_HEADERS = [
   'food_packages_needed',
   'blankets_needed',
   'drinking_water_people',
+  'client_submission_id',
+  'source',
+  'province_pcode',
+  'district_pcode',
+  'palika_pcode',
+  'palika_type_en',
+  'palika_type_ne',
 ];
 
 const FORM_FIELD_MAP = [
@@ -327,12 +334,51 @@ function onFormSubmit(e) {
   const spreadsheet = getSpreadsheet_();
   const response = formResponseRowMap_(spreadsheet, e);
   const row = buildSubmissionRow_(spreadsheet, response);
-  appendObject_(spreadsheet.getSheetByName(DRISHTI.sheets.submissions), SUBMISSION_HEADERS, row);
+  const submissionsSheet = ensureSheet_(spreadsheet, DRISHTI.sheets.submissions, SUBMISSION_HEADERS);
+  appendObject_(submissionsSheet, SUBMISSION_HEADERS, row);
   Logger.log(`Synced form response to Submissions: ${row.event_id} / ${row.palika_id}`);
 }
 
 function normalizeSubmission(e) {
   onFormSubmit(e);
+}
+
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  let hasLock = false;
+
+  try {
+    lock.waitLock(30000);
+    hasLock = true;
+    const spreadsheet = getSpreadsheet_();
+    const payload = parseJsonPost_(e);
+    const row = buildWebSubmissionRow_(spreadsheet, payload);
+    const submissionsSheet = ensureSheet_(spreadsheet, DRISHTI.sheets.submissions, SUBMISSION_HEADERS);
+    appendObject_(submissionsSheet, SUBMISSION_HEADERS, row);
+    Logger.log(`Synced standalone form submission to Submissions: ${row.event_id} / ${row.palika_id}`);
+    return jsonResponse_({
+      ok: true,
+      client_submission_id: row.client_submission_id,
+      event_id: row.event_id,
+      palika_id: row.palika_id,
+      duplicate_status: row.duplicate_status,
+    });
+  } catch (error) {
+    Logger.log(`Standalone form submission failed: ${error.stack || error.message}`);
+    return jsonResponse_({ ok: false, error: error.message || String(error) });
+  } finally {
+    if (hasLock) lock.releaseLock();
+  }
+}
+
+function doGet(e) {
+  const params = (e && e.parameter) || {};
+  if (params.action === 'status') {
+    const spreadsheet = getSpreadsheet_();
+    const found = hasClientSubmission_(spreadsheet, params.submission_id);
+    return jsonpResponse_(params.callback, { ok: true, found });
+  }
+  return jsonpResponse_(params.callback, { ok: false, error: 'Unsupported action' });
 }
 
 function buildSubmissionRow_(spreadsheet, response) {
@@ -369,6 +415,13 @@ function buildSubmissionRow_(spreadsheet, response) {
     is_proxy: isProxySubmission_(submissionType),
     duplicate_status: duplicate ? 'DUPLICATE_REVIEW_REQUIRED' : '',
     override_duplicate: '',
+    client_submission_id: '',
+    source: 'google_form',
+    province_pcode: '',
+    district_pcode: '',
+    palika_pcode: '',
+    palika_type_en: palika.palika_type_en || '',
+    palika_type_ne: palika.palika_type_ne || '',
   };
 
   FORM_FIELD_MAP.forEach(([key, title]) => {
@@ -378,6 +431,50 @@ function buildSubmissionRow_(spreadsheet, response) {
     );
     if (SUBMISSION_HEADERS.indexOf(key) > -1 && !Object.prototype.hasOwnProperty.call(row, key)) {
       row[key] = normalizeValue_(match.value);
+    }
+  });
+
+  return row;
+}
+
+function buildWebSubmissionRow_(spreadsheet, payload) {
+  validateWebSubmission_(payload);
+
+  const event = getActiveEvent_(spreadsheet);
+  const palika = findPalikaForWebSubmission_(spreadsheet, payload);
+  const submissionType = String(webFieldValue_(payload, 'submission_type') || 'Direct');
+  const duplicate = hasDuplicate_(spreadsheet, event.event_id, palika.palika_id);
+
+  const row = {
+    event_id: event.event_id,
+    event_name_ne: event.event_name_ne,
+    event_name_en: event.event_name_en,
+    palika_id: palika.palika_id,
+    palika_name_ne: palika.palika_full_name_ne,
+    palika_name_en: palika.palika_full_name_en,
+    district_ne: palika.district_ne,
+    district_en: palika.district_en,
+    province_ne: palika.province_ne,
+    province_en: palika.province_en,
+    submitted_at: payload.submitted_at || new Date(),
+    operator_name: webFieldValue_(payload, 'operator_name'),
+    submission_type: englishSubmissionType_(submissionType),
+    submission_type_ne: nepaliSubmissionType_(submissionType),
+    is_proxy: isProxySubmission_(submissionType),
+    duplicate_status: duplicate ? 'DUPLICATE_REVIEW_REQUIRED' : '',
+    override_duplicate: '',
+    client_submission_id: webFieldValue_(payload, 'client_submission_id'),
+    source: payload.source || 'standalone_html_form',
+    province_pcode: palika.province_pcode,
+    district_pcode: palika.district_pcode,
+    palika_pcode: palika.palika_pcode,
+    palika_type_en: palika.palika_type_en,
+    palika_type_ne: palika.palika_type_ne,
+  };
+
+  FORM_FIELD_MAP.forEach(([key]) => {
+    if (SUBMISSION_HEADERS.indexOf(key) > -1 && !Object.prototype.hasOwnProperty.call(row, key)) {
+      row[key] = normalizeWebValue_(webFieldValue_(payload, key));
     }
   });
 
@@ -578,6 +675,95 @@ function getActiveEvent_(spreadsheet) {
   const active = rows.find((row) => String(row.active).toUpperCase() === 'TRUE') || rows[0];
   if (!active) throw new Error('No active event found / सक्रिय घटना भेटिएन');
   return active;
+}
+
+function parseJsonPost_(e) {
+  const contents = e && e.postData && e.postData.contents ? String(e.postData.contents) : '';
+  if (contents) return JSON.parse(contents);
+  if (e && e.parameter && e.parameter.payload) return JSON.parse(e.parameter.payload);
+  if (e && e.parameter) return e.parameter;
+  throw new Error('Empty request body / खाली अनुरोध');
+}
+
+function jsonResponse_(payload) {
+  return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function jsonpResponse_(callback, payload) {
+  const callbackName = validJsonpCallback_(callback) ? callback : 'drishtiStatus';
+  return ContentService.createTextOutput(`${callbackName}(${JSON.stringify(payload)});`).setMimeType(
+    ContentService.MimeType.JAVASCRIPT,
+  );
+}
+
+function validJsonpCallback_(callback) {
+  return /^[A-Za-z_$][0-9A-Za-z_$]*(\.[A-Za-z_$][0-9A-Za-z_$]*)*$/.test(String(callback || ''));
+}
+
+function webFieldValue_(payload, key) {
+  const fields = payload && payload.fields ? payload.fields : {};
+  if (Object.prototype.hasOwnProperty.call(fields, key)) return fields[key];
+  if (Object.prototype.hasOwnProperty.call(payload || {}, key)) return payload[key];
+  return '';
+}
+
+function webLocation_(payload, key) {
+  return payload && payload.location && payload.location[key] ? payload.location[key] : {};
+}
+
+function validateWebSubmission_(payload) {
+  const province = webLocation_(payload, 'province');
+  const district = webLocation_(payload, 'district');
+  const palika = webLocation_(payload, 'palika');
+  const requiredFields = [
+    'client_submission_id',
+    'operator_name',
+    'submission_type',
+    'deaths',
+    'missing',
+    'injured',
+    'displaced_households',
+    'private_houses_fully_damaged',
+  ];
+
+  if (!province.name_en || !district.name_en || !palika.palika_id) {
+    throw new Error('Province, district, and palika are required / प्रदेश, जिल्ला र पालिका अनिवार्य छन्');
+  }
+
+  requiredFields.forEach((key) => {
+    const value = webFieldValue_(payload, key);
+    if (value === '' || value === null || value === undefined) {
+      throw new Error(`Required field missing: ${key}`);
+    }
+  });
+}
+
+function findPalikaForWebSubmission_(spreadsheet, payload) {
+  const province = webLocation_(payload, 'province');
+  const district = webLocation_(payload, 'district');
+  const palikaPayload = webLocation_(payload, 'palika');
+  const master = sheetObjects_(spreadsheet.getSheetByName(DRISHTI.sheets.palikaMaster));
+  const masterMatch = master.find((row) => row.palika_id === palikaPayload.palika_id);
+  const fullNameEn = palikaPayload.full_name_en || palikaPayload.name_en || (masterMatch && masterMatch.palika_full_name_en) || '';
+  const fullNameNe = palikaPayload.full_name_ne || palikaPayload.name_ne || (masterMatch && masterMatch.palika_full_name_ne) || '';
+
+  return {
+    palika_id: palikaPayload.palika_id,
+    province_en: province.name_en || (masterMatch && masterMatch.province_en) || '',
+    province_ne: province.name_ne || (masterMatch && masterMatch.province_ne) || '',
+    district_en: district.name_en || (masterMatch && masterMatch.district_en) || '',
+    district_ne: district.name_ne || (masterMatch && masterMatch.district_ne) || '',
+    palika_name_en: palikaPayload.name_en || (masterMatch && masterMatch.palika_name_en) || fullNameEn,
+    palika_name_ne: palikaPayload.name_ne || (masterMatch && masterMatch.palika_name_ne) || fullNameNe,
+    palika_full_name_en: fullNameEn,
+    palika_full_name_ne: fullNameNe,
+    palika_label: palikaPayload.label || `${fullNameNe} / ${fullNameEn}`,
+    province_pcode: province.ocha_adm1_pcode || '',
+    district_pcode: district.ocha_adm2_pcode || '',
+    palika_pcode: palikaPayload.ocha_adm3_pcode || '',
+    palika_type_en: palikaPayload.type_en || (masterMatch && masterMatch.palika_type_en) || '',
+    palika_type_ne: palikaPayload.type_ne || (masterMatch && masterMatch.palika_type_ne) || '',
+  };
 }
 
 function expectedPalikaChoices_(spreadsheet, activeEvent) {
@@ -846,6 +1032,14 @@ function hasDuplicate_(spreadsheet, eventId, palikaId) {
   );
 }
 
+function hasClientSubmission_(spreadsheet, clientSubmissionId) {
+  const targetId = String(clientSubmissionId || '').trim();
+  if (!targetId) return false;
+  return sheetObjects_(spreadsheet.getSheetByName(DRISHTI.sheets.submissions)).some(
+    (row) => String(row.client_submission_id || '').trim() === targetId,
+  );
+}
+
 function sheetObjects_(sheet) {
   const values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
@@ -870,6 +1064,17 @@ function normalizeValue_(value) {
   return value ?? '';
 }
 
+function normalizeWebValue_(value) {
+  if (value === true || value === false) return value;
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number') return value;
+  const text = String(value).trim();
+  if (text === 'true') return true;
+  if (text === 'false') return false;
+  if (text === '') return '';
+  return text;
+}
+
 function englishSubmissionType_(value) {
   if (value.indexOf('Photo') > -1) return 'Photo';
   if (value.indexOf('Voice') > -1) return 'Voice';
@@ -882,7 +1087,11 @@ function isProxySubmission_(value) {
 }
 
 function nepaliSubmissionType_(value) {
-  return value.split('/')[0].trim();
+  const submissionType = englishSubmissionType_(String(value || ''));
+  if (submissionType === 'Photo') return 'कागजको फारामको फोटो';
+  if (submissionType === 'Voice') return 'फोन कल';
+  if (submissionType === 'Direct') return 'सिधा';
+  return String(value || '').split('/')[0].trim();
 }
 
 function qrCodeUrl_(url) {

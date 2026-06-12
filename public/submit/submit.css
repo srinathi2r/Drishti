@@ -1,0 +1,252 @@
+:root {
+  color-scheme: light;
+  font-family:
+    "Kohinoor Devanagari",
+    "Devanagari Sangam MN",
+    "Noto Sans Devanagari",
+    Inter,
+    system-ui,
+    sans-serif;
+  background: #f4f7f5;
+  color: #17201c;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 247, 245, 0.95)),
+    #f4f7f5;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.page-shell {
+  width: min(1180px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 22px 0 44px;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 22px 24px;
+  border: 1px solid #cad8d0;
+  border-left: 6px solid #0f766e;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 34px rgba(17, 35, 29, 0.08);
+}
+
+.form-header h1 {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  color: #17201c;
+  font-size: clamp(1.45rem, 1.1rem + 1.1vw, 2.3rem);
+  line-height: 1.12;
+}
+
+.form-header h1 span:last-child,
+.form-header p span:last-child,
+.section-heading h2 span:last-child,
+.field > span:nth-child(2),
+.dashboard-link span:last-child,
+.submit-button span:last-child {
+  color: #53635c;
+  font-size: 0.78em;
+  font-weight: 650;
+}
+
+.form-header p {
+  display: grid;
+  gap: 2px;
+  margin: 10px 0 0;
+  color: #42524c;
+  font-weight: 700;
+}
+
+.dashboard-link {
+  display: inline-grid;
+  min-width: 132px;
+  gap: 2px;
+  justify-items: center;
+  border: 1px solid #b9c8c1;
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #17201c;
+  text-decoration: none;
+  font-weight: 800;
+  background: #ffffff;
+}
+
+.ira-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.form-section {
+  border: 1px solid #cad8d0;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.section-heading {
+  padding: 14px 18px;
+  border-bottom: 1px solid #d9e3df;
+  background: #e8f5f2;
+}
+
+.section-heading h2 {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  color: #0f5f59;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 18px;
+}
+
+.field-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  color: #17201c;
+  font-weight: 800;
+  min-width: 0;
+}
+
+.field > span {
+  line-height: 1.12;
+}
+
+input,
+select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #b9c8c1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #17201c;
+  background: #ffffff;
+}
+
+input:focus,
+select:focus {
+  outline: 3px solid rgba(15, 118, 110, 0.18);
+  border-color: #0f766e;
+}
+
+select:disabled,
+input:disabled {
+  color: #78857f;
+  background: #f1f5f3;
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  position: sticky;
+  bottom: 0;
+  padding: 14px 0 0;
+  background: linear-gradient(180deg, rgba(244, 247, 245, 0), #f4f7f5 40%);
+}
+
+.status-message {
+  margin: 0;
+  color: #42524c;
+  font-weight: 750;
+}
+
+.status-message.error {
+  color: #b42318;
+}
+
+.status-message.success {
+  color: #087443;
+}
+
+.status-message.warning {
+  color: #a15c00;
+}
+
+.submit-button {
+  display: inline-grid;
+  min-width: 150px;
+  justify-items: center;
+  border: 1px solid #0f766e;
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: #ffffff;
+  background: #0f766e;
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.submit-button span:last-child {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.submit-button:disabled {
+  border-color: #b9c8c1;
+  color: #718078;
+  background: #dce6e1;
+  cursor: not-allowed;
+}
+
+.submit-button:disabled span:last-child {
+  color: #718078;
+}
+
+@media (max-width: 840px) {
+  .page-shell {
+    width: calc(100% - 20px);
+    padding-top: 10px;
+  }
+
+  .form-header,
+  .form-actions {
+    display: grid;
+  }
+
+  .field-grid,
+  .field-grid.two,
+  .field-grid.three {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-link,
+  .submit-button {
+    width: 100%;
+  }
+}
