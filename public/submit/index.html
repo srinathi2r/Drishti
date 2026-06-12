@@ -65,11 +65,23 @@
               <span>Identification</span>
             </h2>
           </div>
-          <div class="field-grid two">
+          <div class="field-grid three">
             <label class="field">
-              <span lang="ne">सञ्चालकको नाम *</span>
-              <span>Operator name *</span>
+              <span lang="ne">तपाईंको नाम *</span>
+              <span>Your name *</span>
               <input data-field="operator_name" type="text" required autocomplete="name" />
+            </label>
+            <label class="field">
+              <span lang="ne">इमेल *</span>
+              <span>Email *</span>
+              <input
+                data-field="submitter_email"
+                type="email"
+                pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
+                required
+                autocomplete="email"
+                title="मान्य इमेल लेख्नुहोस् / Enter a valid email address"
+              />
             </label>
             <label class="field">
               <span lang="ne">पेश गर्ने तरिका *</span>

@@ -179,12 +179,13 @@ const SUBMISSION_HEADERS = [
   'palika_pcode',
   'palika_type_en',
   'palika_type_ne',
+  'submitter_email',
 ];
 
 const FORM_FIELD_MAP = [
   ['event_name', 'घटनाको नाम / Event name', 'event'],
   ['palika', 'पालिकाको नाम / Palika name', 'palika'],
-  ['operator_name', 'सञ्चालकको नाम / Operator name', 'text', true],
+  ['operator_name', 'तपाईंको नाम / Your name', 'text', true],
   ['submission_type', 'पेश गर्ने तरिका / Submission type', 'submission_type', true],
   ['deaths', 'मृत्यु / Deaths', 'number', true],
   ['missing', 'बेपत्ता / Missing', 'number', true],
@@ -232,7 +233,7 @@ const FORM_SECTIONS = {
   identification: {
     title: 'पहिचान / Identification',
     description:
-      'घटना, पालिका, सञ्चालक र पेश गर्ने तरिका छान्नुहोस्। / Select the event, palika, operator, and submission type.',
+      'घटना, पालिका, नाम, इमेल र पेश गर्ने तरिका छान्नुहोस्। / Select the event, palika, name, email, and submission type.',
   },
   affectedPopulation: {
     title: 'प्रभावित जनसंख्या / Affected Population',
@@ -358,26 +359,38 @@ function cleanupFormResponsesSheet() {
 function doPost(e) {
   const lock = LockService.getScriptLock();
   let hasLock = false;
+  let payload = {};
 
   try {
     lock.waitLock(30000);
     hasLock = true;
     const spreadsheet = getSpreadsheet_();
-    const payload = parseJsonPost_(e);
+    payload = parseJsonPost_(e);
     const row = buildWebSubmissionRow_(spreadsheet, payload);
     const submissionsSheet = ensureSheet_(spreadsheet, DRISHTI.sheets.submissions, SUBMISSION_HEADERS);
     appendObject_(submissionsSheet, SUBMISSION_HEADERS, row);
     Logger.log(`Synced standalone form submission to Submissions: ${row.event_id} / ${row.palika_id}`);
-    return jsonResponse_({
+    let emailSent = false;
+    try {
+      emailSent = sendSubmissionConfirmationEmail_(row);
+    } catch (emailError) {
+      Logger.log(`Confirmation email failed but submission succeeded: ${emailError.stack || emailError.message}`);
+    }
+    return submissionResponse_(e, {
       ok: true,
       client_submission_id: row.client_submission_id,
       event_id: row.event_id,
       palika_id: row.palika_id,
       duplicate_status: row.duplicate_status,
+      email_sent: emailSent,
     });
   } catch (error) {
     Logger.log(`Standalone form submission failed: ${error.stack || error.message}`);
-    return jsonResponse_({ ok: false, error: error.message || String(error) });
+    return submissionResponse_(e, {
+      ok: false,
+      client_submission_id: payload.client_submission_id || '',
+      error: error.message || String(error),
+    });
   } finally {
     if (hasLock) lock.releaseLock();
   }
@@ -391,6 +404,39 @@ function doGet(e) {
     return jsonpResponse_(params.callback, { ok: true, found });
   }
   return jsonpResponse_(params.callback, { ok: false, error: 'Unsupported action' });
+}
+
+function sendSubmissionConfirmationEmail_(row) {
+  const email = String(row.submitter_email || '').trim();
+  if (!email) return false;
+
+  const reference = row.client_submission_id || '—';
+  const locationNe = `${row.palika_name_ne || '—'}, ${row.district_ne || '—'}, ${row.province_ne || '—'}`;
+  const locationEn = `${row.palika_name_en || '—'}, ${row.district_en || '—'}, ${row.province_en || '—'}`;
+  const subject = 'रिपोर्ट प्राप्त भयो / Report received';
+  const body = [
+    'नमस्कार,',
+    '',
+    'तपाईंको प्रारम्भिक द्रुत मूल्यांकन रिपोर्ट प्राप्त भयो।',
+    `स्थान: ${locationNe}`,
+    `सन्दर्भ नम्बर: ${reference}`,
+    'यो स्वचालित सन्देश हो।',
+    '',
+    'Hello,',
+    '',
+    'Your Initial Rapid Assessment report has been received.',
+    `Location: ${locationEn}`,
+    `Reference number: ${reference}`,
+    'This is an automated message.',
+  ].join('\n');
+
+  MailApp.sendEmail({
+    to: email,
+    subject,
+    body,
+    name: 'Disaster Situation Dashboard',
+  });
+  return true;
 }
 
 function buildSubmissionRow_(spreadsheet, response) {
@@ -421,7 +467,9 @@ function buildSubmissionRow_(spreadsheet, response) {
       responseValueForTitle_(response, 'Timestamp') ||
       responseValueForTitle_(response, 'पेश गरिएको मिति / Submission date and time') ||
       new Date(),
-    operator_name: responseValueForTitle_(response, 'सञ्चालकको नाम / Operator name'),
+    operator_name:
+      responseValueForTitle_(response, 'तपाईंको नाम / Your name') ||
+      responseValueForTitle_(response, 'सञ्चालकको नाम / Operator name'),
     submission_type: englishSubmissionType_(submissionType),
     submission_type_ne: nepaliSubmissionType_(submissionType),
     is_proxy: isProxySubmission_(submissionType),
@@ -434,6 +482,7 @@ function buildSubmissionRow_(spreadsheet, response) {
     palika_pcode: '',
     palika_type_en: palika.palika_type_en || '',
     palika_type_ne: palika.palika_type_ne || '',
+    submitter_email: responseValueForTitle_(response, 'इमेल / Email') || '',
   };
 
   FORM_FIELD_MAP.forEach(([key, title]) => {
@@ -470,6 +519,7 @@ function buildWebSubmissionRow_(spreadsheet, payload) {
     province_en: palika.province_en,
     submitted_at: payload.submitted_at || new Date(),
     operator_name: webFieldValue_(payload, 'operator_name'),
+    submitter_email: webFieldValue_(payload, 'submitter_email'),
     submission_type: englishSubmissionType_(submissionType),
     submission_type_ne: nepaliSubmissionType_(submissionType),
     is_proxy: isProxySubmission_(submissionType),
@@ -514,8 +564,18 @@ function buildForm_(form, spreadsheet) {
     .setRequired(true);
   form
     .addTextItem()
-    .setTitle('सञ्चालकको नाम / Operator name')
+    .setTitle('तपाईंको नाम / Your name')
     .setRequired(true);
+  form
+    .addTextItem()
+    .setTitle('इमेल / Email')
+    .setRequired(true)
+    .setValidation(
+      FormApp.createTextValidation()
+        .requireTextIsEmail()
+        .setHelpText('मान्य इमेल लेख्नुहोस् / Enter a valid email address')
+        .build(),
+    );
   form
     .addListItem()
     .setTitle('पेश गर्ने तरिका / Submission type')
@@ -701,6 +761,19 @@ function jsonResponse_(payload) {
   return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
 }
 
+function submissionResponse_(e, payload) {
+  const format = String((e && e.parameter && e.parameter.response_format) || '').trim();
+  if (format === 'postMessage') return postMessageResponse_(payload);
+  return jsonResponse_(payload);
+}
+
+function postMessageResponse_(payload) {
+  const message = JSON.stringify({ ...payload, source: 'disaster-submit' }).replace(/</g, '\\u003c');
+  return HtmlService.createHtmlOutput(
+    `<!doctype html><html><body><script>window.parent.postMessage(${message}, "*");</script></body></html>`,
+  ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
 function jsonpResponse_(callback, payload) {
   const callbackName = validJsonpCallback_(callback) ? callback : 'drishtiStatus';
   return ContentService.createTextOutput(`${callbackName}(${JSON.stringify(payload)});`).setMimeType(
@@ -710,6 +783,10 @@ function jsonpResponse_(callback, payload) {
 
 function validJsonpCallback_(callback) {
   return /^[A-Za-z_$][0-9A-Za-z_$]*(\.[A-Za-z_$][0-9A-Za-z_$]*)*$/.test(String(callback || ''));
+}
+
+function validEmail_(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 
 function webFieldValue_(payload, key) {
@@ -730,6 +807,7 @@ function validateWebSubmission_(payload) {
   const requiredFields = [
     'client_submission_id',
     'operator_name',
+    'submitter_email',
     'submission_type',
     'deaths',
     'missing',
@@ -748,6 +826,10 @@ function validateWebSubmission_(payload) {
       throw new Error(`Required field missing: ${key}`);
     }
   });
+
+  if (!validEmail_(webFieldValue_(payload, 'submitter_email'))) {
+    throw new Error('Valid email is required / मान्य इमेल अनिवार्य छ');
+  }
 }
 
 function findPalikaForWebSubmission_(spreadsheet, payload) {

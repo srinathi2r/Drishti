@@ -196,10 +196,6 @@ input:disabled {
   color: #087443;
 }
 
-.status-message.warning {
-  color: #a15c00;
-}
-
 .submit-button {
   display: inline-grid;
   min-width: 150px;

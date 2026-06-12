@@ -1,8 +1,6 @@
 const SUBMISSION_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbxfK7Ff9WQnwDuYkXi7v3hSqD49Zq9O8BN3rwj7CmcQxP8tnYXpzV1NrqjEuXeJWJRV/exec";
 const HIERARCHY_URL = new URL("../data/nepal_admin_hierarchy.json", window.location.href).href;
-const VERIFY_INTERVAL_MS = 3000;
-const VERIFY_TIMEOUT_MS = 45000;
-const JSONP_REQUEST_TIMEOUT_MS = 5000;
+const SUBMIT_RESPONSE_TIMEOUT_MS = 45000;
 
 const form = document.querySelector("#iraForm");
 const provinceSelect = document.querySelector("#provinceSelect");
@@ -151,82 +149,57 @@ function buildPayload() {
 }
 
 async function submitPayload(payload) {
-  await fetch(SUBMISSION_ENDPOINT_URL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: {
-      "Content-Type": "text/plain;charset=utf-8",
-    },
-    body: JSON.stringify(payload),
-  });
-}
-
-function endpointUrl(params) {
-  const url = new URL(SUBMISSION_ENDPOINT_URL);
-  Object.entries(params).forEach(([key, value]) => {
-    url.searchParams.set(key, value);
-  });
-  return url.toString();
-}
-
-function delay(ms) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
-
-function verifySubmissionStatus(submissionId, timeoutMs) {
   return new Promise((resolve, reject) => {
-    const callbackName = `drishtiStatus_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const script = document.createElement("script");
+    const frameName = `drishti_submit_${payload.client_submission_id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+    const frame = document.createElement("iframe");
+    const postForm = document.createElement("form");
+    const payloadInput = document.createElement("input");
+    const responseFormatInput = document.createElement("input");
     const timer = window.setTimeout(() => {
       cleanup();
-      reject(new Error("Verification timed out"));
-    }, timeoutMs);
+      reject(new Error("Submission confirmation timed out"));
+    }, SUBMIT_RESPONSE_TIMEOUT_MS);
 
     function cleanup() {
       window.clearTimeout(timer);
-      delete window[callbackName];
-      script.remove();
+      window.removeEventListener("message", handleMessage);
+      postForm.remove();
+      frame.remove();
     }
 
-    window[callbackName] = (payload) => {
+    function handleMessage(event) {
+      const data = event.data;
+      if (!data || data.source !== "disaster-submit" || data.client_submission_id !== payload.client_submission_id) return;
       cleanup();
-      resolve(Boolean(payload?.ok && payload.found));
-    };
+      if (data.ok) {
+        resolve(data);
+      } else {
+        reject(new Error(data.error || "Submission failed"));
+      }
+    }
 
-    script.onerror = () => {
-      cleanup();
-      reject(new Error("Verification request failed"));
-    };
+    frame.name = frameName;
+    frame.title = "Submission transport";
+    frame.hidden = true;
 
-    script.src = endpointUrl({
-      action: "status",
-      submission_id: submissionId,
-      callback: callbackName,
-    });
-    document.head.append(script);
+    postForm.method = "POST";
+    postForm.action = SUBMISSION_ENDPOINT_URL;
+    postForm.target = frameName;
+    postForm.hidden = true;
+
+    payloadInput.type = "hidden";
+    payloadInput.name = "payload";
+    payloadInput.value = JSON.stringify(payload);
+
+    responseFormatInput.type = "hidden";
+    responseFormatInput.name = "response_format";
+    responseFormatInput.value = "postMessage";
+
+    postForm.append(payloadInput, responseFormatInput);
+    window.addEventListener("message", handleMessage);
+    document.body.append(frame, postForm);
+    postForm.submit();
   });
-}
-
-async function waitForSubmissionConfirmation(submissionId) {
-  const deadline = Date.now() + VERIFY_TIMEOUT_MS;
-
-  while (Date.now() < deadline) {
-    try {
-      const timeoutMs = Math.min(JSONP_REQUEST_TIMEOUT_MS, deadline - Date.now());
-      // Await each JSONP status request before sleeping, so slow Apps Script
-      // redirects cannot create overlapping verification requests.
-      if (timeoutMs > 0 && (await verifySubmissionStatus(submissionId, timeoutMs))) return true;
-    } catch {
-      // Keep polling until the overall verification window expires.
-    }
-
-    const remainingMs = deadline - Date.now();
-    if (remainingMs > 0) await delay(Math.min(VERIFY_INTERVAL_MS, remainingMs));
-  }
-
-  return false;
 }
 
 async function initialize() {
@@ -269,23 +242,15 @@ form.addEventListener("submit", async (event) => {
   try {
     const payload = buildPayload();
     await submitPayload(payload);
-    statusMessage.textContent = "पुष्टि हुँदैछ / Confirming submission";
-
-    if (await waitForSubmissionConfirmation(payload.client_submission_id)) {
-      form.reset();
-      resetSelect(districtSelect, "पहिले प्रदेश छान्नुहोस् / Select province first", true);
-      resetSelect(palikaSelect, "पहिले जिल्ला छान्नुहोस् / Select district first", true);
-      statusMessage.className = "status-message success";
-      statusMessage.textContent = "सफलतापूर्वक पेश भयो / Submitted successfully";
-    } else {
-      statusMessage.className = "status-message warning";
-      statusMessage.textContent =
-        "पेशी पठाइयो तर पुष्टि हुन सकेन - कृपया समन्वयकर्तासँग जाँच गर्नुहोस् / Submission sent but not yet confirmed - please check with your coordinator";
-      submitButton.disabled = !formIsValid();
-    }
+    form.reset();
+    resetSelect(districtSelect, "पहिले प्रदेश छान्नुहोस् / Select province first", true);
+    resetSelect(palikaSelect, "पहिले जिल्ला छान्नुहोस् / Select district first", true);
+    statusMessage.className = "status-message success";
+    statusMessage.textContent =
+      "धन्यवाद! तपाईंको रिपोर्ट प्राप्त भयो। पुष्टिकरण इमेल पठाइएको छ। / Thank you! Your report has been received. A confirmation email has been sent.";
   } catch (error) {
     statusMessage.className = "status-message error";
-    statusMessage.textContent = `पेश हुन सकेन / Submission failed: ${error.message}`;
+    statusMessage.textContent = `पेश हुन सकेन। कृपया फेरि प्रयास गर्नुहोस् वा समन्वयकर्तालाई सम्पर्क गर्नुहोस्। / Submission failed. Please retry or contact your coordinator. ${error.message}`;
     submitButton.disabled = !formIsValid();
   }
 });
